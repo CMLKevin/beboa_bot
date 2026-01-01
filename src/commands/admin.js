@@ -3,7 +3,7 @@ import {
     EmbedBuilder,
     PermissionFlagsBits
 } from 'discord.js';
-import { getUser, updateBebits, resetStreak, getStats } from '../database.js';
+import { getUser, updateBebits, resetStreak, getStats, getUserNotes, setUserNotes } from '../database.js';
 import {
     adminBebitsAdded,
     adminBebitsRemoved,
@@ -11,6 +11,9 @@ import {
     adminStreakReset,
     databaseError
 } from '../utils/messages.js';
+import { clearHistory, getChatStats } from './chat.js';
+import { getModelInfo } from '../services/openrouter.js';
+import { clearMentionHistory, getMentionChatStats } from '../handlers/messageHandler.js';
 
 export const data = new SlashCommandBuilder()
     .setName('admin')
@@ -91,6 +94,61 @@ export const data = new SlashCommandBuilder()
                     )
             )
     )
+    .addSubcommandGroup(group =>
+        group
+            .setName('chat')
+            .setDescription('Manage chat feature')
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('clear')
+                    .setDescription('Clear all shared conversation history')
+            )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('status')
+                    .setDescription('View chat feature status')
+            )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('viewnote')
+                    .setDescription('View Beboa\'s notes about a user')
+                    .addUserOption(option =>
+                        option
+                            .setName('user')
+                            .setDescription('User to view notes for')
+                            .setRequired(true)
+                    )
+            )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('setnote')
+                    .setDescription('Set Beboa\'s notes about a user (replaces existing)')
+                    .addUserOption(option =>
+                        option
+                            .setName('user')
+                            .setDescription('User to set notes for')
+                            .setRequired(true)
+                    )
+                    .addStringOption(option =>
+                        option
+                            .setName('note')
+                            .setDescription('Note content (Beboa\'s memory about this user)')
+                            .setRequired(true)
+                            .setMaxLength(1000)
+                    )
+            )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('clearnote')
+                    .setDescription('Clear Beboa\'s notes about a user')
+                    .addUserOption(option =>
+                        option
+                            .setName('user')
+                            .setDescription('User to clear notes for')
+                            .setRequired(true)
+                    )
+            )
+    )
     .addSubcommand(subcommand =>
         subcommand
             .setName('stats')
@@ -123,6 +181,25 @@ export async function execute(interaction) {
         if (subcommandGroup === 'streak') {
             if (subcommand === 'reset') {
                 return await handleStreakReset(interaction);
+            }
+        }
+
+        // Handle chat subcommands
+        if (subcommandGroup === 'chat') {
+            if (subcommand === 'clear') {
+                return await handleChatClear(interaction);
+            }
+            if (subcommand === 'status') {
+                return await handleChatStatus(interaction);
+            }
+            if (subcommand === 'viewnote') {
+                return await handleViewNote(interaction);
+            }
+            if (subcommand === 'setnote') {
+                return await handleSetNote(interaction);
+            }
+            if (subcommand === 'clearnote') {
+                return await handleClearNote(interaction);
             }
         }
 
@@ -267,6 +344,101 @@ async function handleStats(interaction) {
 
     await interaction.reply({
         embeds: [embed],
+        ephemeral: true
+    });
+}
+
+/**
+ * Handle /admin chat clear
+ */
+async function handleChatClear(interaction) {
+    // Clear shared history from both /chat command and @mentions
+    clearHistory();
+    clearMentionHistory();
+
+    console.log(`[ADMIN] ${interaction.user.tag} cleared all shared chat history`);
+
+    await interaction.reply({
+        content: `✅ Cleared all shared conversation history`,
+        ephemeral: true
+    });
+}
+
+/**
+ * Handle /admin chat status
+ */
+async function handleChatStatus(interaction) {
+    const chatStats = getChatStats();
+    const mentionStats = getMentionChatStats();
+    const modelInfo = getModelInfo();
+
+    const totalMessages = (chatStats.totalMessages || 0) + (mentionStats.totalMessages || 0);
+    const totalCooldowns = chatStats.activeCooldowns + mentionStats.activeCooldowns;
+
+    await interaction.reply({
+        content: `**Chat Feature Status**
+**Enabled:** ${modelInfo.configured ? 'Yes' : 'No'}
+**Model:** ${modelInfo.model}
+**Max Tokens:** ${modelInfo.maxTokens}
+**Temperature:** ${modelInfo.temperature}
+
+**Shared History:** ${totalMessages} messages (${chatStats.totalMessages || 0} slash, ${mentionStats.totalMessages || 0} mentions)
+**Users on Cooldown:** ${totalCooldowns}`,
+        ephemeral: true
+    });
+}
+
+/**
+ * Handle /admin chat viewnote
+ */
+async function handleViewNote(interaction) {
+    const targetUser = interaction.options.getUser('user');
+    const notes = getUserNotes(targetUser.id);
+
+    console.log(`[ADMIN] ${interaction.user.tag} viewed notes for ${targetUser.tag}`);
+
+    if (!notes) {
+        await interaction.reply({
+            content: `📝 **Notes for ${targetUser.tag}**\n\n*No notes recorded for this user yet.*\n\nUse \`/admin chat setnote\` to add notes about this user.`,
+            ephemeral: true
+        });
+    } else {
+        await interaction.reply({
+            content: `📝 **Notes for ${targetUser.tag}**\n\n${notes}`,
+            ephemeral: true
+        });
+    }
+}
+
+/**
+ * Handle /admin chat setnote
+ */
+async function handleSetNote(interaction) {
+    const targetUser = interaction.options.getUser('user');
+    const note = interaction.options.getString('note');
+
+    setUserNotes(targetUser.id, note);
+
+    console.log(`[ADMIN] ${interaction.user.tag} set notes for ${targetUser.tag}: "${note.substring(0, 50)}..."`);
+
+    await interaction.reply({
+        content: `✅ Set notes for ${targetUser.tag}:\n\n${note}`,
+        ephemeral: true
+    });
+}
+
+/**
+ * Handle /admin chat clearnote
+ */
+async function handleClearNote(interaction) {
+    const targetUser = interaction.options.getUser('user');
+
+    setUserNotes(targetUser.id, null);
+
+    console.log(`[ADMIN] ${interaction.user.tag} cleared notes for ${targetUser.tag}`);
+
+    await interaction.reply({
+        content: `✅ Cleared notes for ${targetUser.tag}`,
         ephemeral: true
     });
 }

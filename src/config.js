@@ -40,7 +40,18 @@ export const config = {
     NOTIFICATION_CHANNEL_ID: process.env.NOTIFICATION_CHANNEL_ID,
 
     // Role to ping for redemptions (@bebebebebebe)
-    ADMIN_ROLE_ID: process.env.ADMIN_ROLE_ID
+    ADMIN_ROLE_ID: process.env.ADMIN_ROLE_ID,
+
+    // OpenRouter Configuration (optional - chat feature)
+    OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || null,
+    OPENROUTER_MODEL: process.env.OPENROUTER_MODEL || 'deepseek/deepseek-chat',
+    OPENROUTER_MAX_TOKENS: parseInt(process.env.OPENROUTER_MAX_TOKENS) || 300,
+    OPENROUTER_TEMPERATURE: parseFloat(process.env.OPENROUTER_TEMPERATURE) || 0.9,
+
+    // Chat Feature Settings
+    CHAT_COOLDOWN_SECONDS: parseInt(process.env.CHAT_COOLDOWN_SECONDS) || 30,
+    CHAT_MAX_HISTORY: parseInt(process.env.CHAT_MAX_HISTORY) || 10,
+    CHAT_ENABLED: process.env.CHAT_ENABLED !== 'false'
 };
 
 export default config;

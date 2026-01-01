@@ -1,6 +1,6 @@
 # Beboa Bot
 
-A Discord loyalty/engagement bot for BubbleBebe's community server. Beboa is a sadistic snake companion who tracks daily check-ins, awards "Bebits" currency, and allows users to redeem rewards.
+A Discord loyalty/engagement bot for BubbleBebe's community server. Beboa is an AI-powered snake companion who tracks daily check-ins, awards "Bebits" currency, allows users to redeem rewards, and engages in conversations with her bratty personality.
 
 ## Features
 
@@ -8,7 +8,8 @@ A Discord loyalty/engagement bot for BubbleBebe's community server. Beboa is a s
 - **Streak System** - 72-hour grace period to maintain streaks (cosmetic only)
 - **Leaderboard** - Top 10 users ranked by Bebits
 - **Reward Shop** - 11 reward tiers from 1 to 500 Bebits
-- **Admin Tools** - Add/remove/set Bebits, reset streaks, view stats
+- **AI Chat with Beboa** - Talk to Beboa via `/chat` or @mentions
+- **Admin Tools** - Manage Bebits, streaks, chat history, and view stats
 
 ## Quick Start
 
@@ -16,6 +17,7 @@ A Discord loyalty/engagement bot for BubbleBebe's community server. Beboa is a s
 
 - Node.js 20 or higher
 - A Discord bot application with a token
+- OpenRouter API key (optional, for AI chat feature)
 
 ### Installation
 
@@ -37,15 +39,32 @@ A Discord loyalty/engagement bot for BubbleBebe's community server. Beboa is a s
 
    Edit `.env` with your Discord credentials:
    ```env
+   # Discord Configuration (Required)
    DISCORD_TOKEN=your_bot_token
    CLIENT_ID=your_application_client_id
    GUILD_ID=your_server_id
    CHECKIN_CHANNEL_ID=your_checkin_channel_id
    NOTIFICATION_CHANNEL_ID=your_notification_channel_id
    ADMIN_ROLE_ID=role_to_ping_for_redemptions
+
+   # OpenRouter Configuration (Optional - for AI chat)
+   OPENROUTER_API_KEY=your_openrouter_api_key_here
+   OPENROUTER_MODEL=deepseek/deepseek-v3.2
+   OPENROUTER_MAX_TOKENS=200
+   OPENROUTER_TEMPERATURE=1
+
+   # Chat Settings
+   CHAT_COOLDOWN_SECONDS=1
+   CHAT_MAX_HISTORY=50
+   CHAT_ENABLED=true
    ```
 
-4. Start the bot:
+4. Enable MessageContent Intent (required for @mentions):
+   - Go to [Discord Developer Portal](https://discord.com/developers/applications)
+   - Select your application -> Bot
+   - Enable "Message Content Intent" under Privileged Gateway Intents
+
+5. Start the bot:
    ```bash
    npm start
    ```
@@ -67,6 +86,7 @@ When inviting the bot, ensure it has these permissions:
 - Use Application Commands
 - Embed Links
 - Mention Everyone (for pinging the admin role)
+- Read Message Content (privileged intent, for @mentions)
 
 Invite URL format:
 ```
@@ -83,6 +103,7 @@ https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=21
 | `/balance` | Check your Bebits and streak | Any |
 | `/leaderboard` | View top 10 users | Any |
 | `/shop` | Browse and redeem rewards | Any |
+| `/chat` | Talk to Beboa | Any |
 
 ### Admin Commands
 
@@ -93,6 +114,55 @@ https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=21
 | `/admin bebits set @user <amount>` | Set a user's Bebits balance |
 | `/admin streak reset @user` | Reset a user's streak |
 | `/admin stats` | View server statistics |
+| `/admin chat clear` | Clear all shared conversation history |
+| `/admin chat status` | View chat feature status and config |
+| `/admin chat viewnote @user` | View Beboa's notes about a user |
+| `/admin chat setnote @user <note>` | Set Beboa's notes about a user |
+| `/admin chat clearnote @user` | Clear Beboa's notes about a user |
+
+## AI Chat Feature
+
+Beboa has an AI-powered personality that users can interact with. She's a bratty, arrogant snake who secretly cares about the community.
+
+### Talking to Beboa
+
+There are two ways to chat with Beboa:
+
+1. **Slash Command**: Use `/chat message:Your message here`
+2. **@Mention**: Simply mention @Beboa in any message
+
+Both methods share the same conversation history, so Beboa remembers context across interactions.
+
+### Shared Conversation Memory
+
+- All users share a single conversation history - Beboa sees and remembers everyone's messages
+- Messages are tagged with usernames: `[Username]: message`
+- History expires after 30 minutes of inactivity
+- History is limited to the last N exchanges (configurable via `CHAT_MAX_HISTORY`)
+- Admins can clear history with `/admin chat clear`
+
+### Beboa's Personality
+
+- **Bratty & Arrogant** - Acts superior and condescending
+- **Strict & Nagging** - Pushes users to be responsible and maintain their streaks
+- **Secretly Caring** - Her strictness comes from genuine care
+- **In-Character Always** - Never breaks character, insists she's a real snake
+
+She knows about users' Bebits and streaks, and may reference them in conversation.
+
+### Configuration
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `OPENROUTER_API_KEY` | Your OpenRouter API key | (required for chat) |
+| `OPENROUTER_MODEL` | AI model to use | `deepseek/deepseek-chat` |
+| `OPENROUTER_MAX_TOKENS` | Max response length | `300` |
+| `OPENROUTER_TEMPERATURE` | Response creativity (0-2) | `0.9` |
+| `CHAT_COOLDOWN_SECONDS` | Cooldown between messages per user | `30` |
+| `CHAT_MAX_HISTORY` | Max conversation exchanges to remember | `10` |
+| `CHAT_ENABLED` | Enable/disable chat feature | `true` |
+
+Set `CHAT_ENABLED=false` to disable the chat feature entirely.
 
 ## Reward Tiers
 
@@ -139,11 +209,16 @@ beboa-bot/
 │   │   ├── balance.js
 │   │   ├── leaderboard.js
 │   │   ├── shop.js
+│   │   ├── chat.js           # AI chat command
 │   │   └── admin.js
 │   ├── handlers/
 │   │   ├── commandHandler.js
-│   │   └── buttonHandler.js
+│   │   ├── buttonHandler.js
+│   │   └── messageHandler.js # @mention handler
+│   ├── services/
+│   │   └── openrouter.js     # OpenRouter API client
 │   └── utils/
+│       ├── beboa-persona.js  # AI personality & prompts
 │       ├── rewards.js
 │       ├── messages.js
 │       └── time.js
@@ -168,7 +243,7 @@ cp data/beboa.db backups/beboa_$(date +%Y%m%d).db
 
 ### Tables
 
-- `users` - User data (bebits, streak, check-ins)
+- `users` - User data (discord_id, bebits, current_streak, last_checkin, total_checkins, beboa_notes)
 - `redemptions` - Reward redemption history
 
 ## Deployment

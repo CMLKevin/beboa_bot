@@ -3,12 +3,14 @@ import { config } from './config.js';
 import { closeDatabase } from './database.js';
 import { handleCommand, getCommandData } from './handlers/commandHandler.js';
 import { handleButton } from './handlers/buttonHandler.js';
+import { handleMention } from './handlers/messageHandler.js';
 
 // Create Discord client with required intents
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent  // Required for reading message content (@mentions)
     ]
 });
 
@@ -83,6 +85,15 @@ client.on(Events.InteractionCreate, async (interaction) => {
         } catch (replyError) {
             log('ERROR', `Failed to send error response: ${replyError.message}`);
         }
+    }
+});
+
+// Handle @Beboa mentions for chat
+client.on(Events.MessageCreate, async (message) => {
+    try {
+        await handleMention(message);
+    } catch (error) {
+        log('ERROR', `Message handler error: ${error.message}`);
     }
 });
 

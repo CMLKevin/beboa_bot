@@ -6,12 +6,13 @@ import balance from '../commands/balance.js';
 import leaderboard from '../commands/leaderboard.js';
 import shop from '../commands/shop.js';
 import admin from '../commands/admin.js';
+import chat from '../commands/chat.js';
 
 // Create commands collection
 export const commands = new Collection();
 
 // Register all commands
-const commandModules = [checkin, balance, leaderboard, shop, admin];
+const commandModules = [checkin, balance, leaderboard, shop, admin, chat];
 
 commandModules.forEach(command => {
     if (command.data && command.execute) {

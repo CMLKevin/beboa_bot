@@ -47,6 +47,14 @@ db.exec(`
     CREATE INDEX IF NOT EXISTS idx_redemptions_user ON redemptions(discord_id);
 `);
 
+// Add beboa_notes column if it doesn't exist (for existing databases)
+try {
+    db.exec(`ALTER TABLE users ADD COLUMN beboa_notes TEXT DEFAULT NULL`);
+    console.log('[DATABASE] Added beboa_notes column');
+} catch (e) {
+    // Column already exists, ignore error
+}
+
 console.log('[DATABASE] Schema initialized');
 
 // Prepared statements for better performance
@@ -117,6 +125,18 @@ const statements = {
         FROM redemptions
         GROUP BY reward_id
         ORDER BY count DESC
+    `),
+
+    getUserNotes: db.prepare(`
+        SELECT beboa_notes FROM users WHERE discord_id = ?
+    `),
+
+    setUserNotes: db.prepare(`
+        UPDATE users SET beboa_notes = ? WHERE discord_id = ?
+    `),
+
+    getUsersByIds: db.prepare(`
+        SELECT discord_id, bebits, current_streak, beboa_notes FROM users WHERE discord_id IN (SELECT value FROM json_each(?))
     `)
 };
 
@@ -233,6 +253,82 @@ export function getStats() {
         longestStreak,
         redemptionBreakdown
     };
+}
+
+/**
+ * Get Beboa's notes about a user
+ * @param {string} discordId - Discord user ID
+ * @returns {string|null} Notes about the user, or null if none
+ */
+export function getUserNotes(discordId) {
+    const result = statements.getUserNotes.get(discordId);
+    return result?.beboa_notes || null;
+}
+
+/**
+ * Set Beboa's notes about a user
+ * @param {string} discordId - Discord user ID
+ * @param {string|null} notes - Notes to set (null to clear)
+ */
+export function setUserNotes(discordId, notes) {
+    // Ensure user exists first
+    getUser(discordId);
+    statements.setUserNotes.run(notes, discordId);
+    console.log(`[DATABASE] Updated notes for ${discordId}: ${notes ? notes.substring(0, 50) + '...' : 'cleared'}`);
+}
+
+/**
+ * Append to Beboa's notes about a user
+ * @param {string} discordId - Discord user ID
+ * @param {string} newNote - Note to append
+ * @param {number} maxLength - Maximum total notes length (default 1000)
+ */
+export function appendUserNotes(discordId, newNote, maxLength = 1000) {
+    const currentNotes = getUserNotes(discordId) || '';
+    const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const noteWithTimestamp = `[${timestamp}] ${newNote}`;
+
+    let updatedNotes = currentNotes
+        ? `${currentNotes}\n${noteWithTimestamp}`
+        : noteWithTimestamp;
+
+    // Trim to max length, keeping most recent notes
+    if (updatedNotes.length > maxLength) {
+        const lines = updatedNotes.split('\n');
+        while (updatedNotes.length > maxLength && lines.length > 1) {
+            lines.shift(); // Remove oldest note
+            updatedNotes = lines.join('\n');
+        }
+    }
+
+    setUserNotes(discordId, updatedNotes);
+}
+
+/**
+ * Get data for multiple users by their IDs (for mentioned users context)
+ * @param {string[]} discordIds - Array of Discord user IDs
+ * @returns {Array} Array of user objects with notes
+ */
+export function getMentionedUsersData(discordIds) {
+    if (!discordIds || discordIds.length === 0) return [];
+
+    try {
+        return statements.getUsersByIds.all(JSON.stringify(discordIds));
+    } catch (e) {
+        // Fallback for older SQLite versions without json_each
+        return discordIds.map(id => {
+            const user = statements.getUser.get(id);
+            if (user) {
+                return {
+                    discord_id: user.discord_id,
+                    bebits: user.bebits,
+                    current_streak: user.current_streak,
+                    beboa_notes: user.beboa_notes
+                };
+            }
+            return null;
+        }).filter(Boolean);
+    }
 }
 
 /**
