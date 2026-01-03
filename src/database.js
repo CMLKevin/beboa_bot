@@ -2,6 +2,8 @@ import Database from 'better-sqlite3';
 import { mkdirSync, existsSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import { runMigrations } from './migrations/runner.js';
+import migrations from './migrations/index.js';
 
 // Get directory paths for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -21,51 +23,8 @@ db.pragma('journal_mode = WAL'); // Better performance for concurrent reads
 
 console.log('[DATABASE] Connected to', dbPath);
 
-// Initialize schema
-db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-        discord_id TEXT PRIMARY KEY,
-        bebits INTEGER DEFAULT 0,
-        current_streak INTEGER DEFAULT 0,
-        last_checkin TEXT,
-        total_checkins INTEGER DEFAULT 0,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS redemptions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        discord_id TEXT NOT NULL,
-        reward_id TEXT NOT NULL,
-        reward_name TEXT NOT NULL,
-        cost INTEGER NOT NULL,
-        redeemed_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (discord_id) REFERENCES users(discord_id)
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_users_bebits ON users(bebits DESC);
-    CREATE INDEX IF NOT EXISTS idx_users_streak ON users(current_streak DESC);
-    CREATE INDEX IF NOT EXISTS idx_redemptions_user ON redemptions(discord_id);
-
-    CREATE TABLE IF NOT EXISTS chat_history (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        display_name TEXT NOT NULL,
-        content TEXT NOT NULL,
-        role TEXT NOT NULL,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_chat_history_created ON chat_history(created_at DESC);
-`);
-
-// Add beboa_notes column if it doesn't exist (for existing databases)
-try {
-    db.exec(`ALTER TABLE users ADD COLUMN beboa_notes TEXT DEFAULT NULL`);
-    console.log('[DATABASE] Added beboa_notes column');
-} catch (e) {
-    // Column already exists, ignore error
-}
-
-console.log('[DATABASE] Schema initialized');
+// Run database migrations
+runMigrations(db, migrations);
 
 // Prepared statements for better performance
 const statements = {
