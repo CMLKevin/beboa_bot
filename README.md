@@ -137,7 +137,7 @@ Both methods share the same conversation history, so Beboa remembers context acr
 
 - All users share a single conversation history - Beboa sees and remembers everyone's messages
 - Messages are tagged with usernames: `[Username]: message`
-- History expires after 30 minutes of inactivity
+- History persists across bot restarts (stored in database)
 - History is limited to the last N exchanges (configurable via `CHAT_MAX_HISTORY`)
 - Admins can clear history with `/admin chat clear`
 
@@ -210,11 +210,16 @@ beboa-bot/
 │   │   ├── leaderboard.js
 │   │   ├── shop.js
 │   │   ├── chat.js           # AI chat command
+│   │   ├── summarize.js      # Channel summarization
 │   │   └── admin.js
 │   ├── handlers/
 │   │   ├── commandHandler.js
 │   │   ├── buttonHandler.js
 │   │   └── messageHandler.js # @mention handler
+│   ├── migrations/           # Database migrations
+│   │   ├── runner.js         # Migration runner
+│   │   ├── index.js          # Migration registry
+│   │   └── 001_*.js          # Individual migrations
 │   ├── services/
 │   │   └── openrouter.js     # OpenRouter API client
 │   └── utils/
@@ -234,6 +239,58 @@ beboa-bot/
 
 The bot uses SQLite stored in `data/beboa.db`. The database is created automatically on first run.
 
+### Migrations
+
+Database schema changes are handled through migrations, ensuring safe updates without data loss.
+
+**Migrations run automatically** when the bot starts - no manual steps required. The bot tracks which migrations have been applied in the `_migrations` table and only runs new ones.
+
+To check migration status, look for log output on startup:
+```
+[MIGRATIONS] Running: 003_add_chat_history
+[MIGRATIONS] Completed: 003_add_chat_history
+[MIGRATIONS] Applied 1 migration(s)
+```
+
+Or if already up to date:
+```
+[MIGRATIONS] Database is up to date
+```
+
+### Creating New Migrations
+
+When you need to change the database schema:
+
+1. Create a new migration file in `src/migrations/`:
+   ```javascript
+   // src/migrations/004_your_change.js
+   export const name = '004_your_change';
+
+   export function up(db) {
+       // Use db.exec() for schema changes
+       db.exec(`ALTER TABLE users ADD COLUMN new_field TEXT`);
+   }
+
+   export default { name, up };
+   ```
+
+2. Register it in `src/migrations/index.js`:
+   ```javascript
+   import migration004 from './004_your_change.js';
+
+   export const migrations = [
+       // ... existing migrations
+       migration004,
+   ];
+   ```
+
+3. The migration will run automatically on next bot startup.
+
+**Tips:**
+- Use `IF NOT EXISTS` for tables/indexes to make migrations idempotent
+- Check if columns exist before adding them (see `002_add_beboa_notes.js` for example)
+- Migrations run in a transaction - if one fails, it rolls back
+
 ### Backup
 
 To backup the database:
@@ -245,6 +302,8 @@ cp data/beboa.db backups/beboa_$(date +%Y%m%d).db
 
 - `users` - User data (discord_id, bebits, current_streak, last_checkin, total_checkins, beboa_notes)
 - `redemptions` - Reward redemption history
+- `chat_history` - Persistent AI conversation history
+- `_migrations` - Tracks applied migrations
 
 ## Deployment
 
