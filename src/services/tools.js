@@ -258,9 +258,49 @@ registerTool({
     },
     execute: async (args, context) => {
         const { prompt, style = 'artistic' } = args;
+        const fullPrompt = `${style} style: ${prompt}`;
 
-        // Use OpenRouter image generation model
-        const response = await fetch('https://openrouter.ai/api/v1/images/generations', {
+        // Use Together AI for reliable image generation
+        if (config.IMAGE_PROVIDER === 'together' && config.TOGETHER_API_KEY) {
+            const response = await fetch('https://api.together.xyz/v1/images/generations', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${config.TOGETHER_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: config.IMAGE_MODEL,
+                    prompt: fullPrompt,
+                    width: 1024,
+                    height: 1024,
+                    steps: 4,
+                    n: 1
+                })
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Together AI image generation failed: ${response.status} - ${errorText}`);
+            }
+
+            const data = await response.json();
+            const imageUrl = data.data?.[0]?.url;
+
+            if (!imageUrl) {
+                // Check for base64 response
+                const b64 = data.data?.[0]?.b64_json;
+                if (b64) {
+                    return { imageUrl: `data:image/png;base64,${b64}`, prompt, style, isBase64: true };
+                }
+                throw new Error('No image URL in Together AI response');
+            }
+
+            return { imageUrl, prompt, style };
+        }
+
+        // Use OpenRouter chat/completions with modalities for image generation
+        // See: https://openrouter.ai/docs/guides/overview/multimodal/image-generation
+        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${config.OPENROUTER_API_KEY}`,
@@ -270,28 +310,32 @@ registerTool({
             },
             body: JSON.stringify({
                 model: config.IMAGE_MODEL,
-                prompt: `${style} style: ${prompt}`,
-                n: 1,
-                size: '1024x1024'
+                modalities: ['image', 'text'],
+                messages: [
+                    {
+                        role: 'user',
+                        content: `Generate an image: ${fullPrompt}`
+                    }
+                ]
             })
         });
 
         if (!response.ok) {
-            throw new Error(`Image generation failed: ${response.status}`);
+            const errorText = await response.text();
+            throw new Error(`Image generation failed: ${response.status} - ${errorText}`);
         }
 
         const data = await response.json();
-        const imageUrl = data.data?.[0]?.url;
+
+        // OpenRouter returns images in choices[0].message.images array as base64 data URLs
+        const images = data.choices?.[0]?.message?.images;
+        const imageUrl = images?.[0]?.image_url?.url;
 
         if (!imageUrl) {
-            throw new Error('No image URL in response');
+            throw new Error('No image in response. Try: google/gemini-2.5-flash-image-preview or black-forest-labs/flux.2-pro');
         }
 
-        return {
-            imageUrl,
-            prompt,
-            style
-        };
+        return { imageUrl, prompt, style, isBase64: imageUrl.startsWith('data:') };
     }
 });
 

@@ -52,7 +52,11 @@ export const config = {
     EMBEDDING_MODEL: process.env.EMBEDDING_MODEL || 'openai/text-embedding-3-small',
 
     // Image Generation Model
-    IMAGE_MODEL: process.env.IMAGE_MODEL || 'bytedance-seed/seedream-4.5',
+    // OpenRouter models: google/gemini-2.5-flash-image-preview, black-forest-labs/flux.2-pro
+    // Together AI models: black-forest-labs/FLUX.1-schnell
+    IMAGE_MODEL: process.env.IMAGE_MODEL || 'google/gemini-2.5-flash-image-preview',
+    IMAGE_PROVIDER: process.env.IMAGE_PROVIDER || 'openrouter', // 'openrouter' or 'together'
+    TOGETHER_API_KEY: process.env.TOGETHER_API_KEY || null,
 
     // Memory Extraction Model (lightweight for auto-extraction)
     EXTRACTION_MODEL: process.env.EXTRACTION_MODEL || 'x-ai/grok-4.1-fast',
