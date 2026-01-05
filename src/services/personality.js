@@ -7,9 +7,12 @@
  * - Time-based mood cycles
  * - Memory-influenced trait development
  * - Significant emotional moments
+ *
+ * Uses LLM-powered evaluation via llmEvaluator service
  */
 
 import db from '../database.js';
+import { evaluateMood, evaluateRelationship } from './llmEvaluator.js';
 
 // ============================================
 // PERSONALITY DIMENSIONS
@@ -529,68 +532,151 @@ function clamp(value, min, max) {
 
 /**
  * Analyze an interaction and evolve personality/relationships accordingly
+ * Uses LLM-powered evaluation with fallback to keyword-based logic
+ *
+ * @param {string} userId - The user's Discord ID
+ * @param {string} _userName - The user's display name (unused)
+ * @param {string} message - The user's message
+ * @param {string} response - Beboa's response (for relationship evaluation)
+ * @param {object} _context - Additional context (unused)
  */
-export async function processInteraction(userId, _userName, message, _response, _context = {}) {
-    const analysis = analyzeMessage(message);
+export async function processInteraction(userId, _userName, message, response, _context = {}) {
     const relationship = getRelationship(userId);
     const personality = getPersonalityState();
 
-    // Determine mood triggers
-    if (analysis.sentiment < -0.5) {
-        // Negative interaction
-        if (analysis.isChallenge) {
-            setMood('competitive', 'was_challenged');
-            evolveTrait('competitiveness', 0.01, 'challenge_received');
-        } else if (analysis.isRude) {
-            setMood('annoyed', 'rude_message');
-            evolveTrait('patience', -0.005, 'dealt_with_rudeness');
-        }
-    } else if (analysis.sentiment > 0.5) {
-        // Positive interaction
-        if (analysis.isCompliment) {
-            setMood('flustered', 'received_compliment');
-            evolveTrait('tsundereLevel', 0.005, 'got_flustered');
-        } else if (analysis.isPlayful) {
-            setMood('mischievous', 'playful_banter');
-            evolveTrait('playfulness', 0.005, 'playful_exchange');
-        } else if (analysis.isVulnerable) {
-            setMood('protective', 'someone_vulnerable');
-            evolveTrait('protectiveness', 0.01, 'protected_someone');
-            evolveTrait('vulnerability', 0.005, 'witnessed_vulnerability');
+    // Analyze message with LLM (includes mood suggestion)
+    const analysis = await analyzeMessage(message, {
+        relationshipStage: relationship.stage?.key || 'stranger',
+        currentMood: personality.currentMood
+    });
+
+    // Handle mood changes
+    if (analysis.usedLLM && analysis.suggestedMood && analysis.moodConfidence > 0.6) {
+        // Use LLM-suggested mood if confidence is high
+        setMood(analysis.suggestedMood, analysis.triggerReason || 'llm_analysis');
+    } else {
+        // Fallback: Use pattern-based mood triggers
+        if (analysis.sentiment < -0.5) {
+            if (analysis.isChallenge) {
+                setMood('competitive', 'was_challenged');
+                evolveTrait('competitiveness', 0.01, 'challenge_received');
+            } else if (analysis.isRude) {
+                setMood('annoyed', 'rude_message');
+                evolveTrait('patience', -0.005, 'dealt_with_rudeness');
+            }
+        } else if (analysis.sentiment > 0.5) {
+            if (analysis.isCompliment) {
+                setMood('flustered', 'received_compliment');
+                evolveTrait('tsundereLevel', 0.005, 'got_flustered');
+            } else if (analysis.isPlayful) {
+                setMood('mischievous', 'playful_banter');
+                evolveTrait('playfulness', 0.005, 'playful_exchange');
+            } else if (analysis.isVulnerable) {
+                setMood('protective', 'someone_vulnerable');
+                evolveTrait('protectiveness', 0.01, 'protected_someone');
+                evolveTrait('vulnerability', 0.005, 'witnessed_vulnerability');
+            }
         }
     }
 
-    // Update relationship
-    const relUpdates = {
-        familiarity: 0.01, // Always increases slightly
-        affection: analysis.sentiment > 0 ? 0.005 : analysis.sentiment < -0.3 ? -0.002 : 0,
-        trust: analysis.isVulnerable ? 0.02 : 0.002
-    };
+    // Evaluate relationship using LLM
+    const llmRelEval = await evaluateRelationship(message, response, {
+        stage: relationship.stage?.key || 'stranger',
+        affection: relationship.affection,
+        trust: relationship.trust,
+        familiarity: relationship.familiarity,
+        rivalry: relationship.rivalry
+    });
 
-    // Add inside joke if detected
-    if (analysis.isPotentialJoke && Math.random() < 0.1) {
-        relUpdates.addJoke = extractJokeReference(message);
+    let relUpdates;
+    if (llmRelEval) {
+        // Use LLM-evaluated relationship deltas
+        console.log(`[PERSONALITY] Using LLM relationship eval: ${llmRelEval.interactionQuality}`);
+        relUpdates = {
+            ...llmRelEval.relationshipDeltas,
+            addJoke: llmRelEval.suggestedInsideJoke || null,
+            addNote: llmRelEval.noteworthyMoment || null
+        };
+
+        // Evolve traits based on trust indicators
+        if (llmRelEval.trustIndicators?.sharedVulnerability) {
+            evolveTrait('vulnerability', 0.005, 'shared_vulnerability');
+            evolveTrait('protectiveness', 0.003, 'trusted_with_vulnerability');
+        }
+        if (llmRelEval.trustIndicators?.showedCare) {
+            evolveTrait('agreeableness', 0.003, 'showed_care');
+        }
+    } else {
+        // Fallback: Use fixed delta logic
+        console.log('[PERSONALITY] Using fallback relationship deltas');
+        relUpdates = {
+            familiarity: 0.01,
+            affection: analysis.sentiment > 0 ? 0.005 : analysis.sentiment < -0.3 ? -0.002 : 0,
+            trust: analysis.isVulnerable ? 0.02 : 0.002
+        };
+
+        // Add inside joke if detected
+        if (analysis.isPotentialJoke && Math.random() < 0.1) {
+            relUpdates.addJoke = extractJokeReference(message);
+        }
     }
 
     updateRelationship(userId, relUpdates);
 
     // Long-term trait evolution based on interaction patterns
     if (relationship.interaction_count % 20 === 0) {
-        // Every 20 interactions, adjust traits based on patterns
         await evolveFromPatterns(userId);
     }
 
     return {
         moodChanged: personality.currentMood !== getPersonalityState().currentMood,
         relationshipUpdated: true,
-        analysis
+        analysis,
+        llmRelEval
     };
 }
 
 /**
- * Analyze message for sentiment and characteristics
+ * Analyze message for sentiment and characteristics using LLM with fallback
+ * @param {string} message - The message to analyze
+ * @param {object} context - Context for LLM analysis (relationshipStage, currentMood)
+ * @returns {object} Analysis results
  */
-function analyzeMessage(message) {
+async function analyzeMessage(message, context = {}) {
+    // Try LLM-powered analysis first
+    const llmResult = await evaluateMood(message, context);
+
+    if (llmResult) {
+        // LLM analysis succeeded - use its results
+        console.log('[PERSONALITY] Using LLM mood analysis');
+        return {
+            sentiment: llmResult.sentiment,
+            suggestedMood: llmResult.suggestedMood,
+            moodConfidence: llmResult.moodConfidence,
+            triggerReason: llmResult.triggerReason,
+            dominantEmotion: llmResult.dominantEmotion,
+            isChallenge: llmResult.detectedPatterns?.isChallenge || false,
+            isCompliment: llmResult.detectedPatterns?.isCompliment || false,
+            isPlayful: llmResult.detectedPatterns?.isPlayful || false,
+            isVulnerable: llmResult.detectedPatterns?.isVulnerable || false,
+            isRude: llmResult.detectedPatterns?.isRude || false,
+            isSarcastic: llmResult.detectedPatterns?.isSarcastic || false,
+            isPotentialJoke: llmResult.detectedPatterns?.isPlayful || false,
+            isQuestion: message.includes('?'),
+            mentionsBeboa: /\b(beboa|snake|snek)\b/i.test(message),
+            usedLLM: true
+        };
+    }
+
+    // Fallback to keyword-based analysis
+    console.log('[PERSONALITY] Using keyword fallback for mood analysis');
+    return analyzeMessageKeywordFallback(message);
+}
+
+/**
+ * Fallback keyword-based message analysis
+ */
+function analyzeMessageKeywordFallback(message) {
     const lower = message.toLowerCase();
 
     // Sentiment analysis (simple keyword-based)
@@ -608,14 +694,20 @@ function analyzeMessage(message) {
 
     return {
         sentiment,
+        suggestedMood: null,
+        moodConfidence: 0,
+        triggerReason: null,
+        dominantEmotion: 'neutral',
         isChallenge: /\b(bet|fight me|prove|can't|couldn't|dare)\b/i.test(message),
         isCompliment: /\b(cute|smart|best|love you|thank|amazing)\b/i.test(message),
         isPlayful: /\b(lol|lmao|haha|jk|tease|poke)\b/i.test(message) || /[😂🤣😜😏]/.test(message),
         isVulnerable: /\b(sad|depressed|anxious|scared|lonely|struggling|help me)\b/i.test(message),
         isRude: /\b(shut up|stfu|hate you|stupid|dumb|idiot)\b/i.test(message),
+        isSarcastic: false,
         isPotentialJoke: /\b(remember when|that time|lmao|haha|iconic)\b/i.test(message),
         isQuestion: message.includes('?'),
-        mentionsBeboa: /\b(beboa|snake|snek)\b/i.test(message)
+        mentionsBeboa: /\b(beboa|snake|snek)\b/i.test(message),
+        usedLLM: false
     };
 }
 

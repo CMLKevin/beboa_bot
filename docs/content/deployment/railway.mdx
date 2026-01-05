@@ -1,0 +1,181 @@
+# Railway Deployment
+
+Deploy Beboa to [Railway](https://railway.app) for easy cloud hosting.
+
+## Prerequisites
+
+- Railway account
+- GitHub repository with Beboa code
+- Environment variables ready
+
+## Step 1: Create Railway Project
+
+1. Go to [railway.app](https://railway.app)
+2. Click **New Project**
+3. Select **Deploy from GitHub repo**
+4. Authorize Railway to access your repo
+5. Select your Beboa repository
+
+## Step 2: Configure Environment
+
+1. Go to **Variables** tab
+2. Add all required environment variables:
+
+```
+DISCORD_TOKEN=your_bot_token
+CLIENT_ID=your_client_id
+GUILD_ID=your_guild_id
+CHECKIN_CHANNEL_ID=your_channel_id
+NOTIFICATION_CHANNEL_ID=your_channel_id
+ADMIN_ROLE_ID=your_role_id
+OPENROUTER_API_KEY=your_api_key
+BEBE_USER_ID=your_user_id
+```
+
+3. Add optional variables as needed:
+```
+OPENROUTER_MODEL=deepseek/deepseek-chat
+CHAT_ENABLED=true
+MEMORY_ENABLED=true
+```
+
+## Step 3: Configure Build
+
+Railway auto-detects Node.js. Ensure your `package.json` has:
+
+```json
+{
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
+```
+
+## Step 4: Set Up Persistent Storage
+
+SQLite needs persistent storage:
+
+1. Go to **Settings** > **Volumes**
+2. Click **Add Volume**
+3. Mount path: `/app/data`
+4. Update your code to use `/app/data/beboa.db`
+
+Or use environment variable:
+```javascript
+const dbPath = process.env.DATABASE_PATH || 'data/beboa.db';
+```
+
+Add to Railway variables:
+```
+DATABASE_PATH=/app/data/beboa.db
+```
+
+## Step 5: Deploy
+
+1. Click **Deploy**
+2. Watch build logs for errors
+3. Check deployment logs for bot startup
+
+## Railway Configuration File
+
+Create `railway.toml` in project root:
+
+```toml
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "node src/index.js"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+```
+
+## Monitoring
+
+### View Logs
+1. Go to **Deployments**
+2. Click latest deployment
+3. View **Logs** tab
+
+### Check Status
+```
+[DATABASE] Connected to /app/data/beboa.db
+[BOT] Logged in as Beboa#1234
+[BOT] Ready! Serving 1 guild
+```
+
+## Costs
+
+Railway pricing (as of 2024):
+- **Starter**: $5/month, 512MB RAM
+- **Pro**: $20/month, 8GB RAM
+
+Beboa typically uses:
+- ~100-200MB RAM
+- Minimal CPU
+- &lt;100MB storage
+
+## Troubleshooting
+
+### Build Fails
+
+Check `package.json`:
+- Remove `better-sqlite3` from `dependencies` if issues
+- Add to `optionalDependencies` instead
+- Or use a prebuilt binary
+
+### Bot Doesn't Start
+
+Check environment variables:
+```bash
+railway logs
+```
+
+Look for:
+- Missing DISCORD_TOKEN
+- Invalid API keys
+- Database path issues
+
+### Database Reset on Redeploy
+
+Ensure volume is mounted:
+1. Check volume exists in Settings
+2. Verify mount path matches code
+3. Use `DATABASE_PATH` env variable
+
+### Memory Issues
+
+If running out of memory:
+1. Upgrade to Pro plan
+2. Reduce `CHAT_MAX_HISTORY`
+3. Disable memory features
+
+## Automatic Deploys
+
+Railway auto-deploys on push to main branch.
+
+To disable:
+1. Go to **Settings**
+2. **Auto-Deploy** section
+3. Toggle off
+
+## Custom Domain
+
+1. Go to **Settings** > **Networking**
+2. Click **Add Domain**
+3. Add your custom domain
+4. Configure DNS
+
+(Not typically needed for Discord bots)
+
+## Scaling
+
+Railway supports horizontal scaling:
+1. Go to **Settings**
+2. **Replicas** section
+3. Set replica count
+
+**Note**: Discord bots should NOT run multiple replicas - they'll conflict.

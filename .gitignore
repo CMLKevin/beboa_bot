@@ -26,3 +26,7 @@ npm-debug.log*
 # Build
 dist/
 build/
+
+# Next.js (docs)
+docs/.next/
+docs/node_modules/

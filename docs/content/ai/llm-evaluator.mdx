@@ -1,0 +1,352 @@
+---
+title: LLM Evaluator
+description: Centralized LLM service for mood detection, relationships, and Jarvis parsing.
+---
+
+# LLM Evaluator Service
+
+The LLM Evaluator is a centralized service that powers intelligent evaluation across three key systems: **mood detection**, **relationship assessment**, and **Jarvis intent parsing**.
+
+## Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      LLM Evaluator Service                       │
+│                    (x-ai/grok-4.1-fast)                          │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐  │
+│  │    Mood      │  │ Relationship │  │      Jarvis          │  │
+│  │  Evaluator   │  │  Evaluator   │  │  Intent Parser       │  │
+│  └──────────────┘  └──────────────┘  └──────────────────────┘  │
+│                                                                  │
+│  Shared: Rate limiting, caching, error handling                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Why LLM-Powered Evaluation?
+
+| Before (Rule-Based) | After (LLM-Powered) |
+|---------------------|---------------------|
+| Keyword matching misses nuance | Understands context and sarcasm |
+| Fixed relationship increments | Quality-based relationship growth |
+| Rigid regex patterns for Jarvis | Natural language understanding |
+| No typo tolerance | Handles variations and typos |
+| Context-blind | Considers conversation flow |
+
+## Configuration
+
+```env
+# Enable/disable the evaluator
+LLM_EVALUATOR_ENABLED=true
+
+# Model to use (fast and cost-effective)
+LLM_EVALUATOR_MODEL=x-ai/grok-4.1-fast
+
+# Cache TTL in milliseconds (default: 60000 = 1 minute)
+LLM_EVALUATOR_CACHE_TTL=60000
+
+# Rate limit: max calls per minute (default: 30)
+LLM_EVALUATOR_RATE_LIMIT=30
+```
+
+## The Three Evaluators
+
+### 1. Mood Evaluator
+
+Analyzes user messages for emotional content and suggests appropriate mood shifts.
+
+```javascript
+import { evaluateMood } from './services/llmEvaluator.js';
+
+const result = await evaluateMood("omg you're so cute!", {
+  relationshipStage: 'friend',
+  currentMood: 'neutral'
+});
+
+// Result:
+{
+  sentiment: 0.8,
+  dominantEmotion: "happy",
+  suggestedMood: "flustered",
+  moodConfidence: 0.92,
+  triggerReason: "received_compliment",
+  detectedPatterns: {
+    isChallenge: false,
+    isCompliment: true,
+    isPlayful: false,
+    isVulnerable: false,
+    isRude: false,
+    isSarcastic: false
+  }
+}
+```
+
+**Used by:** `personality.js` → `processInteraction()`
+
+### 2. Relationship Evaluator
+
+Assesses interaction quality and determines appropriate relationship changes.
+
+```javascript
+import { evaluateRelationship } from './services/llmEvaluator.js';
+
+const result = await evaluateRelationship(
+  "I've been having a really tough week...",
+  "Hey... I'm not good at this stuff, but... I'm here. You can talk to me, okay?",
+  {
+    stage: 'friend',
+    affection: 0.5,
+    trust: 0.4,
+    familiarity: 0.6,
+    rivalry: 0.1
+  }
+);
+
+// Result:
+{
+  interactionQuality: "deep",
+  emotionalDepth: 0.85,
+  trustIndicators: {
+    sharedVulnerability: true,
+    askedForHelp: true,
+    showedCare: true,
+    wasHonest: true
+  },
+  relationshipDeltas: {
+    affection: 0.04,
+    trust: 0.03,
+    familiarity: 0.02,
+    rivalry: 0
+  },
+  suggestedInsideJoke: null,
+  noteworthyMoment: "User opened up about having a tough week",
+  reasoning: "Deep emotional moment with vulnerability and care shown"
+}
+```
+
+**Used by:** `personality.js` → `processInteraction()`
+
+### 3. Jarvis Intent Parser
+
+Parses natural language admin commands into structured actions.
+
+```javascript
+import { parseJarvisIntent } from './services/llmEvaluator.js';
+
+const result = await parseJarvisIntent("yo give @CoolUser like 100 coins", {
+  recentCommands: ['user_info'],
+  userId: '123456789'
+});
+
+// Result:
+{
+  isCommand: true,
+  command: "give_bebits",
+  confidence: 0.88,
+  params: {
+    targetUserId: "987654321",
+    amount: 100,
+    text: null
+  },
+  requiresConfirmation: false,
+  clarificationNeeded: null,
+  reasoning: "'yo give' indicates giving, 'like 100 coins' = 100 bebits"
+}
+```
+
+**Used by:** `adminCommands.js` → `parseAndExecuteAdminCommand()`
+
+## Rate Limiting
+
+The evaluator implements a sliding window rate limiter:
+
+```javascript
+// 30 calls per minute window
+const RATE_LIMIT_CALLS = 30;
+const RATE_LIMIT_WINDOW = 60000; // 1 minute
+
+// If rate limited, returns null (signals fallback)
+if (!checkRateLimit()) {
+  console.log('[LLM_EVALUATOR] Rate limited, using fallback');
+  return null;
+}
+```
+
+### Monitoring Rate Limits
+
+```javascript
+import { getCacheStats } from './services/llmEvaluator.js';
+
+const stats = getCacheStats();
+// { size: 15, rateLimitCalls: 12, rateLimitRemaining: 18 }
+```
+
+## Response Caching
+
+Responses are cached by content hash to reduce API calls:
+
+```javascript
+// Cache key is hash of input content
+const cacheKey = `mood_${hashContent(message + relationshipStage + currentMood)}`;
+
+// Cached responses are reused within TTL
+const cached = responseCache.get(cacheKey);
+if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+  return cached.response;
+}
+```
+
+### Cache Management
+
+```javascript
+import { clearCache, getCacheStats } from './services/llmEvaluator.js';
+
+// Check cache status
+const stats = getCacheStats();
+console.log(`Cache size: ${stats.size} entries`);
+
+// Clear if needed
+clearCache();
+```
+
+## Fallback Behavior
+
+When the LLM evaluator is unavailable or returns `null`, each system has fallbacks:
+
+### Mood Fallback
+```javascript
+// Falls back to keyword matching
+const positiveWords = ['love', 'thanks', 'awesome', 'great', 'amazing'];
+const negativeWords = ['hate', 'stupid', 'dumb', 'annoying'];
+```
+
+### Relationship Fallback
+```javascript
+// Falls back to fixed deltas
+const relUpdates = {
+  familiarity: 0.01,
+  affection: sentiment > 0 ? 0.005 : -0.002,
+  trust: isVulnerable ? 0.02 : 0.002
+};
+```
+
+### Jarvis Fallback
+```javascript
+// Falls back to regex pattern matching
+for (const pattern of cmd.patterns) {
+  const match = message.match(pattern);
+  if (match) return { command: cmd.name, match };
+}
+```
+
+## Error Handling
+
+The evaluator gracefully handles errors:
+
+```javascript
+try {
+  const response = await fetch(OPENROUTER_API, { ... });
+
+  if (!response.ok) {
+    console.error('[LLM_EVALUATOR] API error:', response.status);
+    return null;  // Signal fallback
+  }
+
+  // Parse and return
+  return JSON.parse(content);
+
+} catch (error) {
+  console.error('[LLM_EVALUATOR] Error:', error.message);
+  return null;  // Signal fallback
+}
+```
+
+## API Details
+
+### Request Structure
+
+```javascript
+await fetch('https://openrouter.ai/api/v1/chat/completions', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${config.OPENROUTER_API_KEY}`,
+    'Content-Type': 'application/json',
+    'HTTP-Referer': 'https://github.com/CMLKevin/beboa_evo',
+    'X-Title': 'Beboa Discord Bot - LLM Evaluator'
+  },
+  body: JSON.stringify({
+    model: 'x-ai/grok-4.1-fast',
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt }
+    ],
+    temperature: 0.1,           // Deterministic
+    max_tokens: 500,
+    response_format: { type: 'json_object' }
+  })
+});
+```
+
+### Why `grok-4.1-fast`?
+
+- **Fast**: Low latency for real-time evaluation
+- **Cost-effective**: Affordable for frequent calls
+- **JSON-capable**: Reliable structured output
+- **Context-aware**: Understands nuance and sarcasm
+
+## Debugging
+
+Console logs show which evaluation method is used:
+
+```
+# LLM evaluation active
+[PERSONALITY] Using LLM mood analysis
+[PERSONALITY] Using LLM relationship eval: meaningful
+[JARVIS] LLM parsed: give_bebits (confidence: 0.92)
+
+# Fallback active
+[PERSONALITY] Using keyword fallback for mood analysis
+[PERSONALITY] Using fallback relationship deltas
+[JARVIS] LLM not available or low confidence, trying pattern matching
+```
+
+## Cost Estimation
+
+With `x-ai/grok-4.1-fast`:
+
+| Usage | Calls/Day | Est. Cost/Month |
+|-------|-----------|-----------------|
+| Light | ~100 | ~$1-2 |
+| Medium | ~500 | ~$5-10 |
+| Heavy | ~2000 | ~$20-40 |
+
+Caching significantly reduces actual API calls.
+
+## Best Practices
+
+1. **Monitor rate limits** - Check `getCacheStats()` regularly
+2. **Trust the fallbacks** - They work when LLM is unavailable
+3. **Keep cache TTL reasonable** - 60s balances freshness vs. cost
+4. **Use low temperature** - 0.1 ensures consistent evaluations
+5. **Check logs** - Verify which method is being used
+6. **Don't disable unnecessarily** - LLM evaluation is superior to keywords
+
+## File Location
+
+```
+src/services/llmEvaluator.js
+```
+
+## Exports
+
+```javascript
+// Evaluators
+export async function evaluateMood(message, context)
+export async function evaluateRelationship(userMessage, botResponse, context)
+export async function parseJarvisIntent(message, context)
+
+// Utilities
+export function isAvailable()     // Check if evaluator can be called
+export function getCacheStats()   // Get cache and rate limit info
+export function clearCache()      // Clear response cache
+```

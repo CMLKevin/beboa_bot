@@ -1,0 +1,176 @@
+3:I[4707,[],""]
+5:I[6423,[],""]
+6:I[2060,["972","static/chunks/972-68a674eeca97bbbb.js","646","static/chunks/646-1e67c3e800eb58dd.js","185","static/chunks/app/layout-4b75b78215e64ea2.js"],"ThemeProvider"]
+7:I[4351,["972","static/chunks/972-68a674eeca97bbbb.js","646","static/chunks/646-1e67c3e800eb58dd.js","185","static/chunks/app/layout-4b75b78215e64ea2.js"],"Header"]
+8:I[9399,["972","static/chunks/972-68a674eeca97bbbb.js","646","static/chunks/646-1e67c3e800eb58dd.js","185","static/chunks/app/layout-4b75b78215e64ea2.js"],"Sidebar"]
+4:["slug","dev/commands","c"]
+0:["FeUt14WxB_Uw-6zJdn3nr",[[["",{"children":[["slug","dev/commands","c"],{"children":["__PAGE__?{\"slug\":[\"dev\",\"commands\"]}",{}]}]},"$undefined","$undefined",true],["",{"children":[["slug","dev/commands","c"],{"children":["__PAGE__",{},[["$L1","$L2",null],null],null]},[null,["$","$L3",null,{"parallelRouterKey":"children","segmentPath":["children","$4","children"],"error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L5",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":"$undefined","notFoundStyles":"$undefined"}]],null]},[[[["$","link","0",{"rel":"stylesheet","href":"/_next/static/css/3cf59f0fd0496c15.css","precedence":"next","crossOrigin":"$undefined"}]],["$","html",null,{"lang":"en","suppressHydrationWarning":true,"children":["$","body",null,{"className":"__variable_f367f3 __variable_a06722 font-sans","children":["$","$L6",null,{"children":["$","div",null,{"className":"min-h-screen bg-[var(--bg-primary)] transition-colors duration-200","children":[["$","$L7",null,{}],["$","div",null,{"className":"flex","children":[["$","$L8",null,{}],["$","main",null,{"className":"flex-1 min-w-0 lg:pl-[var(--sidebar-width)]","children":["$","div",null,{"className":"max-w-[var(--content-max-width)] mx-auto px-6 py-8 lg:px-8 lg:py-12","children":["$","$L3",null,{"parallelRouterKey":"children","segmentPath":["children"],"error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L5",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":[["$","title",null,{"children":"404: This page could not be found."}],["$","div",null,{"style":{"fontFamily":"system-ui,\"Segoe UI\",Roboto,Helvetica,Arial,sans-serif,\"Apple Color Emoji\",\"Segoe UI Emoji\"","height":"100vh","textAlign":"center","display":"flex","flexDirection":"column","alignItems":"center","justifyContent":"center"},"children":["$","div",null,{"children":[["$","style",null,{"dangerouslySetInnerHTML":{"__html":"body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}"}}],["$","h1",null,{"className":"next-error-h1","style":{"display":"inline-block","margin":"0 20px 0 0","padding":"0 23px 0 0","fontSize":24,"fontWeight":500,"verticalAlign":"top","lineHeight":"49px"},"children":"404"}],["$","div",null,{"style":{"display":"inline-block"},"children":["$","h2",null,{"style":{"fontSize":14,"fontWeight":400,"lineHeight":"49px","margin":0},"children":"This page could not be found."}]}]]}]}]],"notFoundStyles":[]}]}]}]]}]]}]}]}]}]],null],null],["$L9",null]]]]
+a:I[6430,["972","static/chunks/972-68a674eeca97bbbb.js","646","static/chunks/646-1e67c3e800eb58dd.js","877","static/chunks/app/%5B...slug%5D/page-ea4807ff1312ce17.js"],"Breadcrumbs"]
+b:I[9078,["972","static/chunks/972-68a674eeca97bbbb.js","646","static/chunks/646-1e67c3e800eb58dd.js","877","static/chunks/app/%5B...slug%5D/page-ea4807ff1312ce17.js"],"CopyPageButton"]
+d:I[3308,["972","static/chunks/972-68a674eeca97bbbb.js","646","static/chunks/646-1e67c3e800eb58dd.js","877","static/chunks/app/%5B...slug%5D/page-ea4807ff1312ce17.js"],"PageNavigation"]
+e:I[5321,["972","static/chunks/972-68a674eeca97bbbb.js","646","static/chunks/646-1e67c3e800eb58dd.js","877","static/chunks/app/%5B...slug%5D/page-ea4807ff1312ce17.js"],"TableOfContents"]
+2:[["$","article",null,{"className":"animate-in","children":[["$","div",null,{"className":"flex items-start justify-between gap-4 mb-6","children":[["$","$La",null,{}],["$","$Lb",null,{}]]}],["$","h1",null,{"children":"Commands"}],"$undefined",["$","div",null,{"className":"prose-custom","children":"$Lc"}],["$","$Ld",null,{}]]}],["$","$Le",null,{}]]
+9:[["$","meta","0",{"name":"viewport","content":"width=device-width, initial-scale=1"}],["$","meta","1",{"charSet":"utf-8"}],["$","title","2",{"children":"Commands - Beboa Docs"}],["$","link","3",{"rel":"icon","href":"/favicon.ico"}],["$","meta","4",{"name":"next-size-adjust"}]]
+1:null
+f:I[5045,["972","static/chunks/972-68a674eeca97bbbb.js","646","static/chunks/646-1e67c3e800eb58dd.js","877","static/chunks/app/%5B...slug%5D/page-ea4807ff1312ce17.js"],"CodeBlock"]
+10:T4a8,import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import { getUser } from '../services/database.js';
+
+export const data = new SlashCommandBuilder()
+    .setName('mycommand')
+    .setDescription('Description of what this command does')
+    .addUserOption(option =>
+        option
+            .setName('target')
+            .setDescription('The target user')
+            .setRequired(false)
+    )
+    .addIntegerOption(option =>
+        option
+            .setName('amount')
+            .setDescription('Amount value')
+            .setMinValue(1)
+            .setMaxValue(1000)
+            .setRequired(false)
+    );
+
+export async function execute(interaction) {
+    // Get options
+    const target = interaction.options.getUser('target') || interaction.user;
+    const amount = interaction.options.getInteger('amount') || 10;
+
+    // Do something
+    const user = await getUser(target.id);
+
+    // Build response
+    const embed = new EmbedBuilder()
+        .setTitle('My Command')
+        .setDescription(`Target: ${target.username}`)
+        .addFields({ name: 'Amount', value: String(amount) })
+        .setColor(0x9B59B6);
+
+    await interaction.reply({ embeds: [embed] });
+}11:T4b8,export const data = new SlashCommandBuilder()
+    .setName('settings')
+    .setDescription('Manage settings')
+    .addSubcommand(sub =>
+        sub.setName('view').setDescription('View current settings')
+    )
+    .addSubcommand(sub =>
+        sub
+            .setName('set')
+            .setDescription('Change a setting')
+            .addStringOption(opt =>
+                opt.setName('key').setDescription('Setting name').setRequired(true)
+            )
+            .addStringOption(opt =>
+                opt.setName('value').setDescription('New value').setRequired(true)
+            )
+    );
+
+export async function execute(interaction) {
+    const subcommand = interaction.options.getSubcommand();
+
+    switch (subcommand) {
+        case 'view':
+            await handleView(interaction);
+            break;
+        case 'set':
+            await handleSet(interaction);
+            break;
+    }
+}
+
+async function handleView(interaction) {
+    await interaction.reply('Current settings...');
+}
+
+async function handleSet(interaction) {
+    const key = interaction.options.getString('key');
+    const value = interaction.options.getString('value');
+    await interaction.reply(`Set ${key} to ${value}`);
+}12:T9f1,// src/commands/gift.js
+import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
+import { addBebits, getUser } from '../services/database.js';
+
+export const data = new SlashCommandBuilder()
+    .setName('gift')
+    .setDescription('Gift bebits to another user')
+    .addUserOption(option =>
+        option
+            .setName('recipient')
+            .setDescription('Who to gift bebits to')
+            .setRequired(true)
+    )
+    .addIntegerOption(option =>
+        option
+            .setName('amount')
+            .setDescription('Amount to gift')
+            .setMinValue(1)
+            .setMaxValue(1000)
+            .setRequired(true)
+    )
+    .addStringOption(option =>
+        option
+            .setName('message')
+            .setDescription('Optional message')
+            .setRequired(false)
+    )
+    .setDMPermission(false);
+
+export async function execute(interaction) {
+    const sender = interaction.user;
+    const recipient = interaction.options.getUser('recipient');
+    const amount = interaction.options.getInteger('amount');
+    const message = interaction.options.getString('message');
+
+    // Validation
+    if (recipient.id === sender.id) {
+        return interaction.reply({
+            content: "You can't gift bebits to yourself!",
+            ephemeral: true
+        });
+    }
+
+    if (recipient.bot) {
+        return interaction.reply({
+            content: "You can't gift bebits to bots!",
+            ephemeral: true
+        });
+    }
+
+    // Check sender balance
+    const senderData = await getUser(sender.id);
+    if (senderData.bebits < amount) {
+        return interaction.reply({
+            content: `You don't have enough bebits! (Have: ${senderData.bebits})`,
+            ephemeral: true
+        });
+    }
+
+    // Defer for processing
+    await interaction.deferReply();
+
+    try {
+        // Process gift
+        await addBebits(sender.id, -amount);
+        await addBebits(recipient.id, amount);
+
+        // Build response
+        const embed = new EmbedBuilder()
+            .setTitle('🎁 Gift Sent!')
+            .setDescription(`${sender} gifted **${amount} bebits** to ${recipient}!`)
+            .setColor(0x9B59B6)
+            .setTimestamp();
+
+        if (message) {
+            embed.addFields({ name: 'Message', value: message });
+        }
+
+        await interaction.editReply({ embeds: [embed] });
+
+    } catch (error) {
+        console.error('[GIFT ERROR]', error);
+        await interaction.editReply('Failed to process gift. Please try again.');
+    }
+}c:[["$","h1",null,{"id":"extending-commands","children":"Extending Commands"}],"\n",["$","p",null,{"children":"Guide to adding new slash commands to Beboa."}],"\n",["$","h2",null,{"id":"command-structure","children":["$","a",null,{"href":"#command-structure","className":"anchor-link","children":"Command Structure"}]}],"\n",["$","p",null,{"children":["Each command is a module in ",["$","code",null,{"children":"src/commands/"}]," with two exports:"]}],"\n",["$","$Lf",null,{"language":"javascript","children":"// src/commands/example.js\nimport { SlashCommandBuilder } from 'discord.js';\n\n// Command definition\nexport const data = new SlashCommandBuilder()\n    .setName('example')\n    .setDescription('An example command');\n\n// Command handler\nexport async function execute(interaction) {\n    await interaction.reply('Hello!');\n}"}],"\n",["$","h2",null,{"id":"creating-a-new-command","children":["$","a",null,{"href":"#creating-a-new-command","className":"anchor-link","children":"Creating a New Command"}]}],"\n",["$","h3",null,{"id":"step-1-create-the-file","children":["$","a",null,{"href":"#step-1-create-the-file","className":"anchor-link","children":"Step 1: Create the File"}]}],"\n",["$","$Lf",null,{"language":"bash","children":"touch src/commands/mycommand.js"}],"\n",["$","h3",null,{"id":"step-2-define-the-command","children":["$","a",null,{"href":"#step-2-define-the-command","className":"anchor-link","children":"Step 2: Define the Command"}]}],"\n",["$","$Lf",null,{"language":"javascript","children":"$10"}],"\n",["$","h3",null,{"id":"step-3-restart-the-bot","children":["$","a",null,{"href":"#step-3-restart-the-bot","className":"anchor-link","children":"Step 3: Restart the Bot"}]}],"\n",["$","p",null,{"children":"Commands auto-load on startup. Just restart:"}],"\n",["$","$Lf",null,{"language":"bash","children":"npm start"}],"\n",["$","h2",null,{"id":"command-options","children":["$","a",null,{"href":"#command-options","className":"anchor-link","children":"Command Options"}]}],"\n",["$","h3",null,{"id":"user-options","children":["$","a",null,{"href":"#user-options","className":"anchor-link","children":"User Options"}]}],"\n",["$","$Lf",null,{"language":"javascript","children":".addUserOption(option =>\n    option.setName('user').setDescription('Target user').setRequired(true)\n)\n\n// In execute:\nconst user = interaction.options.getUser('user');"}],"\n",["$","h3",null,{"id":"string-options","children":["$","a",null,{"href":"#string-options","className":"anchor-link","children":"String Options"}]}],"\n",["$","$Lf",null,{"language":"javascript","children":".addStringOption(option =>\n    option.setName('message').setDescription('Your message').setRequired(true)\n)\n\n// With choices:\n.addStringOption(option =>\n    option\n        .setName('mood')\n        .setDescription('Select mood')\n        .addChoices(\n            { name: 'Happy', value: 'happy' },\n            { name: 'Sad', value: 'sad' },\n            { name: 'Angry', value: 'angry' }\n        )\n)\n\n// In execute:\nconst message = interaction.options.getString('message');\nconst mood = interaction.options.getString('mood');"}],"\n",["$","h3",null,{"id":"number-options","children":["$","a",null,{"href":"#number-options","className":"anchor-link","children":"Number Options"}]}],"\n",["$","$Lf",null,{"language":"javascript","children":".addIntegerOption(option =>\n    option\n        .setName('count')\n        .setDescription('Number of items')\n        .setMinValue(1)\n        .setMaxValue(100)\n        .setRequired(false)\n)\n\n.addNumberOption(option =>\n    option\n        .setName('percentage')\n        .setDescription('Percentage value')\n        .setMinValue(0)\n        .setMaxValue(100)\n)\n\n// In execute:\nconst count = interaction.options.getInteger('count') || 10;\nconst percentage = interaction.options.getNumber('percentage');"}],"\n",["$","h3",null,{"id":"boolean-options","children":["$","a",null,{"href":"#boolean-options","className":"anchor-link","children":"Boolean Options"}]}],"\n",["$","$Lf",null,{"language":"javascript","children":".addBooleanOption(option =>\n    option.setName('ephemeral').setDescription('Only visible to you')\n)\n\n// In execute:\nconst ephemeral = interaction.options.getBoolean('ephemeral') ?? true;\nawait interaction.reply({ content: 'Done!', ephemeral });"}],"\n",["$","h3",null,{"id":"channel-options","children":["$","a",null,{"href":"#channel-options","className":"anchor-link","children":"Channel Options"}]}],"\n",["$","$Lf",null,{"language":"javascript","children":".addChannelOption(option =>\n    option.setName('channel').setDescription('Target channel')\n)\n\n// In execute:\nconst channel = interaction.options.getChannel('channel') || interaction.channel;"}],"\n",["$","h3",null,{"id":"role-options","children":["$","a",null,{"href":"#role-options","className":"anchor-link","children":"Role Options"}]}],"\n",["$","$Lf",null,{"language":"javascript","children":".addRoleOption(option =>\n    option.setName('role').setDescription('Target role')\n)\n\n// In execute:\nconst role = interaction.options.getRole('role');"}],"\n",["$","h2",null,{"id":"subcommands","children":["$","a",null,{"href":"#subcommands","className":"anchor-link","children":"Subcommands"}]}],"\n",["$","p",null,{"children":"For complex commands with multiple actions:"}],"\n",["$","$Lf",null,{"language":"javascript","children":"$11"}],"\n",["$","h2",null,{"id":"response-types","children":["$","a",null,{"href":"#response-types","className":"anchor-link","children":"Response Types"}]}],"\n",["$","h3",null,{"id":"simple-reply","children":["$","a",null,{"href":"#simple-reply","className":"anchor-link","children":"Simple Reply"}]}],"\n",["$","$Lf",null,{"language":"javascript","children":"await interaction.reply('Hello!');"}],"\n",["$","h3",null,{"id":"ephemeral-private-reply","children":["$","a",null,{"href":"#ephemeral-private-reply","className":"anchor-link","children":"Ephemeral (Private) Reply"}]}],"\n",["$","$Lf",null,{"language":"javascript","children":"await interaction.reply({ content: 'Only you can see this', ephemeral: true });"}],"\n",["$","h3",null,{"id":"embed-reply","children":["$","a",null,{"href":"#embed-reply","className":"anchor-link","children":"Embed Reply"}]}],"\n",["$","$Lf",null,{"language":"javascript","children":"const embed = new EmbedBuilder()\n    .setTitle('Title')\n    .setDescription('Description')\n    .setColor(0x9B59B6)\n    .addFields(\n        { name: 'Field 1', value: 'Value 1', inline: true },\n        { name: 'Field 2', value: 'Value 2', inline: true }\n    )\n    .setFooter({ text: 'Footer text' })\n    .setTimestamp();\n\nawait interaction.reply({ embeds: [embed] });"}],"\n",["$","h3",null,{"id":"deferred-reply","children":["$","a",null,{"href":"#deferred-reply","className":"anchor-link","children":"Deferred Reply"}]}],"\n",["$","p",null,{"children":"For long operations (>3 seconds):"}],"\n",["$","$Lf",null,{"language":"javascript","children":"await interaction.deferReply();\n\n// Do long operation...\nawait someSlowFunction();\n\nawait interaction.editReply('Done!');"}],"\n",["$","h3",null,{"id":"follow-up-messages","children":["$","a",null,{"href":"#follow-up-messages","className":"anchor-link","children":"Follow-up Messages"}]}],"\n",["$","$Lf",null,{"language":"javascript","children":"await interaction.reply('First message');\nawait interaction.followUp('Second message');\nawait interaction.followUp({ content: 'Private', ephemeral: true });"}],"\n",["$","h2",null,{"id":"permissions","children":["$","a",null,{"href":"#permissions","className":"anchor-link","children":"Permissions"}]}],"\n",["$","h3",null,{"id":"require-permissions","children":["$","a",null,{"href":"#require-permissions","className":"anchor-link","children":"Require Permissions"}]}],"\n",["$","$Lf",null,{"language":"javascript","children":"export const data = new SlashCommandBuilder()\n    .setName('kick')\n    .setDescription('Kick a user')\n    .setDefaultMemberPermissions(PermissionFlagsBits.KickMembers);"}],"\n",["$","h3",null,{"id":"check-permissions-in-handler","children":["$","a",null,{"href":"#check-permissions-in-handler","className":"anchor-link","children":"Check Permissions in Handler"}]}],"\n",["$","$Lf",null,{"language":"javascript","children":"export async function execute(interaction) {\n    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {\n        return interaction.reply({\n            content: 'You need Administrator permission!',\n            ephemeral: true\n        });\n    }\n    // Continue...\n}"}],"\n",["$","h3",null,{"id":"guild-only-command","children":["$","a",null,{"href":"#guild-only-command","className":"anchor-link","children":"Guild-Only Command"}]}],"\n",["$","$Lf",null,{"language":"javascript","children":"export const data = new SlashCommandBuilder()\n    .setName('serveronly')\n    .setDescription('Only works in servers')\n    .setDMPermission(false);"}],"\n",["$","h2",null,{"id":"error-handling","children":["$","a",null,{"href":"#error-handling","className":"anchor-link","children":"Error Handling"}]}],"\n",["$","$Lf",null,{"language":"javascript","children":"export async function execute(interaction) {\n    try {\n        // Command logic\n        const result = await riskyOperation();\n        await interaction.reply(`Success: ${result}`);\n    } catch (error) {\n        console.error('[COMMAND ERROR]', error);\n\n        const errorMessage = {\n            content: 'Something went wrong! Please try again.',\n            ephemeral: true\n        };\n\n        // Handle both initial reply and deferred states\n        if (interaction.deferred || interaction.replied) {\n            await interaction.editReply(errorMessage);\n        } else {\n            await interaction.reply(errorMessage);\n        }\n    }\n}"}],"\n",["$","h2",null,{"id":"complete-example","children":["$","a",null,{"href":"#complete-example","className":"anchor-link","children":"Complete Example"}]}],"\n",["$","p",null,{"children":"A full command with all features:"}],"\n",["$","$Lf",null,{"language":"javascript","children":"$12"}]]

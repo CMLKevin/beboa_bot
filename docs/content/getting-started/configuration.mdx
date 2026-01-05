@@ -1,0 +1,180 @@
+---
+title: Configuration
+description: Complete reference for all Beboa environment variables.
+---
+
+# Configuration
+
+All configuration is done through environment variables in the `.env` file.
+
+## Required Variables
+
+These must be set for the bot to start:
+
+```env
+# Discord Configuration
+DISCORD_TOKEN=your_bot_token_here
+CLIENT_ID=your_application_id
+GUILD_ID=your_server_id
+CHECKIN_CHANNEL_ID=channel_for_checkins
+NOTIFICATION_CHANNEL_ID=channel_for_notifications
+ADMIN_ROLE_ID=role_to_ping_for_redemptions
+
+# OpenRouter API (Required for AI)
+OPENROUTER_API_KEY=your_openrouter_key
+```
+
+## AI Model Configuration
+
+```env
+# Main Chat Model
+OPENROUTER_MODEL=deepseek/deepseek-chat
+OPENROUTER_MAX_TOKENS=1000
+OPENROUTER_TEMPERATURE=0.9
+
+# Embedding Model (for semantic memory)
+EMBEDDING_MODEL=openai/text-embedding-3-small
+
+# Image Generation Model
+IMAGE_MODEL=bytedance-seed/seedream-4.5
+
+# Memory Extraction Model
+EXTRACTION_MODEL=x-ai/grok-4.1-fast
+
+# LLM Evaluator (mood, relationships, Jarvis parsing)
+LLM_EVALUATOR_MODEL=x-ai/grok-4.1-fast
+LLM_EVALUATOR_ENABLED=true
+LLM_EVALUATOR_CACHE_TTL=60000
+LLM_EVALUATOR_RATE_LIMIT=30
+```
+
+### Recommended Models by Use Case
+
+| Use Case | Recommended Model | Cost |
+|----------|-------------------|------|
+| Chat (Budget) | `deepseek/deepseek-chat` | $ |
+| Chat (Quality) | `anthropic/claude-3.5-sonnet` | $$$ |
+| Embeddings | `openai/text-embedding-3-small` | $ |
+| Image Gen | `bytedance-seed/seedream-4.5` | $$ |
+| LLM Evaluator | `x-ai/grok-4.1-fast` | $ |
+
+## Feature Toggles
+
+```env
+# Chat System
+CHAT_ENABLED=true
+CHAT_COOLDOWN_SECONDS=1
+CHAT_MAX_HISTORY=150
+
+# User Memory System
+MEMORY_ENABLED=true
+MEMORY_AUTO_EXTRACT=true
+CHANNEL_CONTEXT_LIMIT=20
+
+# Tools
+TOOLS_ENABLED=true
+IMAGE_GEN_ENABLED=true
+```
+
+## Server-Wide Memory
+
+Ambient awareness of all server activity.
+
+```env
+# Enable server-wide memory (default: true)
+SERVER_MEMORY_ENABLED=true
+
+# Channels to monitor (empty = all channels)
+SERVER_MEMORY_CHANNELS=
+
+# Channels to exclude (comma-separated IDs)
+SERVER_MEMORY_EXCLUDED_CHANNELS=123456789,987654321
+
+# Importance threshold for embedding (0-1, default: 0.3)
+IMPORTANCE_THRESHOLD=0.3
+
+# Embedding batch size (default: 10)
+EMBEDDING_BATCH_SIZE=10
+
+# Embedding processing interval in ms (default: 30000)
+EMBEDDING_INTERVAL_MS=30000
+
+# Enable hourly channel summaries (default: true)
+HOURLY_SUMMARY_ENABLED=true
+
+# Enable daily channel summaries (default: true)
+DAILY_SUMMARY_ENABLED=true
+
+# Message retention in days (default: 30)
+SERVER_MEMORY_RETENTION_DAYS=30
+```
+
+See [Server-Wide Memory](/ai/server-memory) for full documentation.
+
+## Jarvis Mode Configuration
+
+```env
+# Primary owner (always has Jarvis access)
+BEBE_USER_ID=owner_discord_user_id
+```
+
+> **Tip**: Additional users can be granted Jarvis access via `/admin jarvis grant @user`
+
+## Feature Details
+
+### `CHAT_COOLDOWN_SECONDS`
+Minimum seconds between AI responses per user. Set higher to reduce API costs.
+
+### `CHAT_MAX_HISTORY`
+Number of messages to keep in conversation history. Higher = more context but more tokens.
+
+### `CHANNEL_CONTEXT_LIMIT`
+How many recent channel messages Beboa can see for context (1-50).
+
+### `MEMORY_AUTO_EXTRACT`
+When enabled, Beboa automatically extracts and stores facts from conversations.
+
+### `LLM_EVALUATOR_ENABLED`
+Enables the LLM-powered evaluation system for mood detection, relationship assessment, and Jarvis intent parsing. When disabled, falls back to keyword-based logic.
+
+### `LLM_EVALUATOR_CACHE_TTL`
+How long (in milliseconds) to cache LLM evaluation results. Helps reduce API calls for repeated interactions.
+
+### `LLM_EVALUATOR_RATE_LIMIT`
+Maximum LLM evaluator calls per minute. Prevents excessive API usage during high activity.
+
+## Environment Examples
+
+### Development (Low Cost)
+```env
+OPENROUTER_MODEL=deepseek/deepseek-chat
+OPENROUTER_MAX_TOKENS=500
+CHAT_COOLDOWN_SECONDS=5
+MEMORY_ENABLED=false
+IMAGE_GEN_ENABLED=false
+```
+
+### Production (Full Features)
+```env
+OPENROUTER_MODEL=anthropic/claude-3.5-sonnet
+OPENROUTER_MAX_TOKENS=1500
+CHAT_COOLDOWN_SECONDS=1
+MEMORY_ENABLED=true
+MEMORY_AUTO_EXTRACT=true
+IMAGE_GEN_ENABLED=true
+TOOLS_ENABLED=true
+```
+
+## Validating Configuration
+
+Run the bot with:
+```bash
+npm start
+```
+
+Check the console for:
+- ✅ `[DATABASE] Connected`
+- ✅ `[OPENROUTER] Configured`
+- ✅ `[BOT] Ready`
+
+Any missing variables will be listed with clear error messages.

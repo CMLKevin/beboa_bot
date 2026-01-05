@@ -57,6 +57,12 @@ export const config = {
     // Memory Extraction Model (lightweight for auto-extraction)
     EXTRACTION_MODEL: process.env.EXTRACTION_MODEL || 'x-ai/grok-4.1-fast',
 
+    // LLM Evaluator Settings (mood, relationships, Jarvis intent parsing)
+    LLM_EVALUATOR_MODEL: process.env.LLM_EVALUATOR_MODEL || 'x-ai/grok-4.1-fast',
+    LLM_EVALUATOR_ENABLED: process.env.LLM_EVALUATOR_ENABLED !== 'false',
+    LLM_EVALUATOR_CACHE_TTL: parseInt(process.env.LLM_EVALUATOR_CACHE_TTL) || 60000,
+    LLM_EVALUATOR_RATE_LIMIT: parseInt(process.env.LLM_EVALUATOR_RATE_LIMIT) || 30,
+
     // Chat Feature Settings
     CHAT_COOLDOWN_SECONDS: parseInt(process.env.CHAT_COOLDOWN_SECONDS) || 30,
     CHAT_MAX_HISTORY: parseInt(process.env.CHAT_MAX_HISTORY) || 10,
@@ -72,7 +78,18 @@ export const config = {
     IMAGE_GEN_ENABLED: process.env.IMAGE_GEN_ENABLED !== 'false',
 
     // Admin/Jarvis Settings
-    BEBE_USER_ID: process.env.BEBE_USER_ID || null
+    BEBE_USER_ID: process.env.BEBE_USER_ID || null,
+
+    // Server-Wide Memory Settings
+    SERVER_MEMORY_ENABLED: process.env.SERVER_MEMORY_ENABLED !== 'false',
+    SERVER_MEMORY_CHANNELS: process.env.SERVER_MEMORY_CHANNELS?.split(',').filter(Boolean) || [],
+    SERVER_MEMORY_EXCLUDED_CHANNELS: process.env.SERVER_MEMORY_EXCLUDED_CHANNELS?.split(',').filter(Boolean) || [],
+    IMPORTANCE_THRESHOLD: parseFloat(process.env.IMPORTANCE_THRESHOLD) || 0.3,
+    EMBEDDING_BATCH_SIZE: parseInt(process.env.EMBEDDING_BATCH_SIZE) || 10,
+    EMBEDDING_INTERVAL_MS: parseInt(process.env.EMBEDDING_INTERVAL_MS) || 30000,
+    HOURLY_SUMMARY_ENABLED: process.env.HOURLY_SUMMARY_ENABLED !== 'false',
+    DAILY_SUMMARY_ENABLED: process.env.DAILY_SUMMARY_ENABLED !== 'false',
+    SERVER_MEMORY_RETENTION_DAYS: parseInt(process.env.SERVER_MEMORY_RETENTION_DAYS) || 30
 };
 
 export default config;

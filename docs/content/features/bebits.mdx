@@ -1,0 +1,146 @@
+# Bebits & Rewards
+
+Bebits are Beboa's virtual currency system. Users earn them through engagement and spend them on rewards.
+
+## Earning Bebits
+
+| Method | Amount | Frequency |
+|--------|--------|-----------|
+| Daily Check-in | 10 | Once per day |
+| Streak Bonus | 5-50 | Per check-in |
+| Admin Gifts | Variable | As granted |
+| Events | Variable | Special occasions |
+
+## Commands
+
+### `/balance`
+Check your current Bebits balance.
+
+### `/balance @user`
+Check another user's balance (if enabled).
+
+### `/leaderboard`
+View top 10 Bebits holders.
+
+### `/shop`
+Browse available rewards.
+
+### `/redeem [reward_name]`
+Spend Bebits on a reward.
+
+## Rewards
+
+The shop offers 11 reward tiers:
+
+| Tier | Reward | Cost | Description |
+|------|--------|------|-------------|
+| 1 | Custom Nickname | 50 | Pick a server nickname |
+| 2 | Color Role | 100 | Custom role color |
+| 3 | Emoji Suggestion | 200 | Suggest a server emoji |
+| 4 | Sticker Request | 300 | Request a custom sticker |
+| 5 | VIP Channel Access | 500 | Access exclusive channel |
+| 6 | Stream Night Pick | 750 | Choose stream night content |
+| 7 | Bot Name Change | 1000 | Rename Beboa (24hrs) |
+| 8 | Custom Command | 1500 | Personal bot command |
+| 9 | Mod for a Day | 2500 | Temporary mod powers |
+| 10 | Featured Art | 5000 | Art showcased in server |
+| 11 | Legendary Title | 10000 | Permanent special role |
+
+## Redemption Flow
+
+1. User runs `/redeem [reward]`
+2. Beboa confirms the redemption
+3. Admin role is pinged in notification channel
+4. Admin fulfills the reward manually
+5. Bebits are deducted
+
+### Notification Setup
+
+```env
+NOTIFICATION_CHANNEL_ID=1234567890
+ADMIN_ROLE_ID=0987654321
+```
+
+Notifications appear as:
+```
+🎁 REDEMPTION REQUEST
+User: @CoolUser
+Reward: Custom Nickname
+Cost: 50 Bebits
+@AdminRole please fulfill this request!
+```
+
+## Admin Management
+
+### Via Slash Commands
+
+```
+/admin bebits give @user 100
+/admin bebits remove @user 50
+/admin bebits set @user 500
+```
+
+### Via Jarvis Mode
+
+For users with Jarvis access:
+```
+"give @user 100 bebits"
+"take 50 bebits from @user"
+"set @user's balance to 500"
+"transfer 100 bebits from @user1 to @user2"
+```
+
+## Database Schema
+
+```sql
+-- User balances
+CREATE TABLE users (
+    user_id TEXT PRIMARY KEY,
+    bebits INTEGER DEFAULT 0
+);
+
+-- Redemption history
+CREATE TABLE redemptions (
+    id INTEGER PRIMARY KEY,
+    user_id TEXT,
+    reward_name TEXT,
+    cost INTEGER,
+    redeemed_at TEXT,
+    fulfilled INTEGER DEFAULT 0
+);
+```
+
+## Customizing Rewards
+
+### Add a New Reward
+
+Edit `src/services/shop.js`:
+
+```javascript
+const REWARDS = [
+    // ... existing rewards
+    {
+        id: 'new_reward',
+        name: 'New Reward',
+        cost: 300,
+        description: 'Description here',
+        emoji: '🎁'
+    }
+];
+```
+
+### Modify Costs
+
+Adjust the `cost` property in the rewards array.
+
+### Remove a Reward
+
+Delete or comment out the reward entry. Existing redemptions are preserved in history.
+
+## Economy Tips
+
+1. **Balance earning vs spending** - Don't make rewards too cheap
+2. **Create aspirational goals** - High-tier rewards drive engagement
+3. **Seasonal events** - Double Bebits weekends, holiday bonuses
+4. **Avoid inflation** - Don't give too many admin gifts
+5. **Track economy health** - Use `/admin stats` to monitor totals

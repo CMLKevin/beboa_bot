@@ -24,6 +24,7 @@ import {
     getCooldownMessage,
     getDisabledMessage
 } from '../utils/beboa-persona.js';
+import { buildServerMemoryContext } from '../services/serverMemory.js';
 
 // Cooldowns for mention-based chat
 const mentionCooldowns = new Map();
@@ -117,6 +118,17 @@ export async function handleMention(message) {
             memoryContext = await buildMemoryContext(userId, content);
         }
 
+        // Get server-wide memory context (ambient awareness)
+        let serverMemoryContext = '';
+        if (config.SERVER_MEMORY_ENABLED && message.guild) {
+            serverMemoryContext = await buildServerMemoryContext(
+                message.guild.id,
+                message.channel.id,
+                content,
+                userId
+            );
+        }
+
         // Get dynamic personality state and relationship
         const personalityState = getPersonalityState();
         const relationship = getRelationship(userId);
@@ -127,6 +139,7 @@ export async function handleMention(message) {
             userData,
             displayName,
             memoryContext,
+            serverMemoryContext,
             channelContext,
             personalityTraits: personalityState.effectiveTraits,
             personalityPrompt,

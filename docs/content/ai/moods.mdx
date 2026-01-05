@@ -1,0 +1,202 @@
+---
+title: Mood System
+description: 11 dynamic moods that affect Beboa's behavior in real-time.
+---
+
+# Mood System
+
+Beboa has 11 distinct moods that affect her responses in real-time. The system uses **LLM-powered analysis** to detect emotional content and trigger appropriate mood shifts.
+
+## The 12 Moods
+
+| Mood | Emoji | Behavior | Duration |
+|------|-------|----------|----------|
+| `neutral` | 😐 | Default balanced state | 60 min |
+| `happy` | 😊 | More playful, less snarky | 45 min |
+| `annoyed` | 😤 | Short responses, extra sarcasm | 30 min |
+| `mischievous` | 😏 | Scheming energy, cryptic hints | 40 min |
+| `protective` | 🐍 | Defensive, less snark | 60 min |
+| `flustered` | 😳 | Stuttering, aggressive deflection | 20 min |
+| `bored` | 😑 | Lazy, minimal effort | 30 min |
+| `energetic` | ⚡ | High energy, chaotic | 35 min |
+| `melancholic` | 😔 | Thoughtful, rare wisdom | 45 min |
+| `competitive` | 🔥 | Game on, rivalry mode | 30 min |
+| `smug` | 😏 | Feeling superior | 25 min |
+| `soft` | 💕 | Rare genuine warmth | 20 min |
+
+## LLM-Powered Mood Detection
+
+The mood system uses an LLM evaluator to analyze messages with full context awareness.
+
+### How It Works
+
+```
+User Message
+     │
+     ▼
+┌─────────────────────────────────┐
+│     LLM Mood Evaluator          │
+│  (x-ai/grok-4.1-fast)           │
+│                                 │
+│  Analyzes:                      │
+│  - Sentiment (-1.0 to 1.0)      │
+│  - Dominant emotion             │
+│  - Detected patterns            │
+│  - Context awareness            │
+└────────────┬────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────┐
+│  Suggested Mood + Confidence    │
+│  (confidence > 0.6 triggers)    │
+└────────────┬────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────┐
+│  Apply Mood + Log Change        │
+└─────────────────────────────────┘
+```
+
+### LLM Analysis Output
+
+```javascript
+// Example LLM evaluation result
+{
+  sentiment: 0.7,                    // Positive sentiment
+  dominantEmotion: "playful",        // Primary emotion detected
+  suggestedMood: "mischievous",      // Recommended mood
+  moodConfidence: 0.85,              // High confidence
+  triggerReason: "playful_banter",   // Why this mood was suggested
+  detectedPatterns: {
+    isChallenge: false,
+    isCompliment: false,
+    isPlayful: true,                 // Detected playfulness
+    isVulnerable: false,
+    isRude: false,
+    isSarcastic: true                // Sarcasm detection
+  }
+}
+```
+
+### Pattern Detection
+
+The LLM evaluator detects these patterns:
+
+| Pattern | Mood Trigger | Example |
+|---------|--------------|---------|
+| `isChallenge` | competitive | "bet you can't..." |
+| `isCompliment` | flustered | "you're so cute!" |
+| `isPlayful` | mischievous | "lol let's do something fun" |
+| `isVulnerable` | protective | "I'm feeling down..." |
+| `isRude` | annoyed | "shut up" |
+| `isSarcastic` | (context-aware) | Detected sarcasm doesn't trigger negative moods |
+
+## Fallback to Keywords
+
+When the LLM evaluator is unavailable (rate limited or disabled), the system falls back to keyword matching:
+
+```javascript
+// Fallback keyword detection
+const positiveWords = ['love', 'thanks', 'awesome', 'great', 'amazing', 'cute'];
+const negativeWords = ['hate', 'stupid', 'dumb', 'annoying', 'shut up'];
+
+// Pattern-based detection
+isChallenge: /\b(bet|fight me|prove|can't|dare)\b/i
+isCompliment: /\b(cute|smart|best|love you|amazing)\b/i
+isVulnerable: /\b(sad|depressed|anxious|scared|lonely)\b/i
+```
+
+## Mood Effects on Responses
+
+### Happy
+> "Oh! You actually had a good idea for once! ...I mean, it's acceptable. Fine."
+
+### Annoyed
+> "What. Do. You. Want."
+
+### Flustered
+> "W-What?! I wasn't being nice! You're imagining things! ...baka"
+
+### Protective
+> "Hey. Nobody messes with you while I'm around. ...Not that I care or anything!"
+
+### Soft (rare)
+> "You know I... I don't HATE having you around. ...forget I said that."
+
+## Mood in System Prompt
+
+```javascript
+const moodContext = `
+**Current Mood:** ${moodData.emoji} ${moodData.name} - ${moodData.description}
+
+**How to express current mood:**
+${getMoodBehaviorHints(currentMood)}
+`;
+```
+
+## Configuration
+
+```env
+# Enable/disable LLM mood evaluation
+LLM_EVALUATOR_ENABLED=true
+
+# Model for mood analysis
+LLM_EVALUATOR_MODEL=x-ai/grok-4.1-fast
+
+# Cache mood evaluations for 60 seconds
+LLM_EVALUATOR_CACHE_TTL=60000
+```
+
+## Viewing Current Mood
+
+### Via Jarvis Mode
+```
+"what mood is beboa in"
+"how's beboa feeling"
+"personality status"
+```
+
+### Via Code
+```javascript
+import { getPersonalityState } from './services/personality.js';
+
+const state = getPersonalityState();
+console.log(`Mood: ${state.moodData.emoji} ${state.currentMood}`);
+```
+
+## Setting Mood Manually
+
+### Via Jarvis Mode
+```
+"set mood to happy"
+"make beboa mischievous"
+"mood: competitive"
+```
+
+### Via Code
+```javascript
+import { setMood } from './services/personality.js';
+
+setMood('mischievous', 'manual_override');
+```
+
+## Natural Decay
+
+Moods decay to neutral after their duration expires:
+
+```javascript
+const moodStarted = new Date(state.mood_started_at);
+const moodDuration = moodData.duration * 60 * 1000; // in ms
+
+if (Date.now() - moodStarted.getTime() > moodDuration) {
+    setMood('neutral', 'mood_decay');
+}
+```
+
+## Best Practices
+
+1. **Trust the LLM** - It understands context better than keywords
+2. **Monitor confidence** - Only high-confidence suggestions trigger mood shifts
+3. **Use cache wisely** - Reduces API calls while maintaining responsiveness
+4. **Let moods flow** - Natural transitions create organic personality
+5. **Check logs** - `[PERSONALITY] Using LLM mood analysis` confirms LLM is active

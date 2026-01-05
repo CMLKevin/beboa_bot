@@ -1,0 +1,240 @@
+---
+title: Relationships
+description: Per-user relationship tracking with LLM-powered evaluation.
+---
+
+# Relationship Tracking
+
+Beboa tracks individual relationships with each user, affecting how she interacts with them. The system uses **LLM-powered evaluation** to assess interaction quality and determine relationship growth.
+
+## Relationship Stages
+
+Users progress through 6 stages based on familiarity:
+
+| Stage | Min Familiarity | Behavior |
+|-------|-----------------|----------|
+| `stranger` | 0% | Sizing them up, default snark |
+| `acquaintance` | 20% | Recognizes them, slightly warmer |
+| `regular` | 40% | Comfortable teasing, remembers things |
+| `friend` | 60% | Genuine care beneath snark, inside jokes |
+| `closeFriend` | 80% | Protective, drops act occasionally |
+| `family` | 95% | Would die for them (not that she'd admit it) |
+
+## Relationship Dimensions
+
+Each user has four relationship metrics:
+
+| Dimension | Description | Range |
+|-----------|-------------|-------|
+| `affection` | How much Beboa likes them | 0.0 - 1.0 |
+| `trust` | How much she trusts them | 0.0 - 1.0 |
+| `familiarity` | How well she knows them | 0.0 - 1.0 |
+| `rivalry` | Competitive energy | 0.0 - 1.0 |
+
+## LLM-Powered Relationship Evaluation
+
+The system uses an LLM to evaluate each interaction and determine appropriate relationship changes.
+
+### How It Works
+
+```
+User Message + Bot Response
+          │
+          ▼
+┌─────────────────────────────────────┐
+│    LLM Relationship Evaluator       │
+│    (x-ai/grok-4.1-fast)             │
+│                                     │
+│  Evaluates:                         │
+│  - Interaction quality              │
+│  - Emotional depth                  │
+│  - Trust indicators                 │
+│  - Relationship deltas              │
+└──────────────┬──────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────┐
+│  Apply Bounded Deltas               │
+│  (max ±0.05 affection/interaction)  │
+└──────────────┬──────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────┐
+│  Extract Moments & Inside Jokes     │
+└─────────────────────────────────────┘
+```
+
+### LLM Evaluation Output
+
+```javascript
+// Example LLM relationship evaluation
+{
+  interactionQuality: "meaningful",  // shallow|normal|meaningful|deep
+  emotionalDepth: 0.7,
+  trustIndicators: {
+    sharedVulnerability: true,       // User opened up
+    askedForHelp: false,
+    showedCare: true,                // User showed care for Beboa
+    wasHonest: true
+  },
+  relationshipDeltas: {
+    affection: 0.03,                 // Positive interaction
+    trust: 0.02,                     // Trust-building moment
+    familiarity: 0.015,              // Always positive
+    rivalry: 0                       // No competitive element
+  },
+  suggestedInsideJoke: "that time they called me 'danger noodle'",
+  noteworthyMoment: "User shared they were having a tough day",
+  reasoning: "User showed vulnerability and Beboa responded with care"
+}
+```
+
+### Interaction Quality Levels
+
+| Quality | Description | Typical Deltas |
+|---------|-------------|----------------|
+| `shallow` | Brief, surface-level | +0.005 familiarity |
+| `normal` | Standard conversation | +0.01 familiarity, +0.002 trust |
+| `meaningful` | Emotional exchange | +0.02-0.03 affection/trust |
+| `deep` | Significant moment | +0.03-0.05 multiple dimensions |
+
+### Trust Indicators
+
+The LLM detects these trust-building patterns:
+
+| Indicator | Effect |
+|-----------|--------|
+| `sharedVulnerability` | +trust, +protectiveness trait |
+| `askedForHelp` | +trust, +affection |
+| `showedCare` | +affection, +agreeableness trait |
+| `wasHonest` | +trust |
+
+## Bounded Deltas
+
+To prevent exploitation, all deltas are clamped:
+
+```javascript
+relationshipDeltas: {
+  affection: Math.max(-0.05, Math.min(0.05, delta)),  // ±5% max
+  trust: Math.max(-0.03, Math.min(0.03, delta)),       // ±3% max
+  familiarity: Math.max(0.005, Math.min(0.02, delta)), // Always positive
+  rivalry: Math.max(-0.02, Math.min(0.02, delta))      // ±2% max
+}
+```
+
+## Fallback System
+
+When LLM evaluation is unavailable, the system uses fixed deltas:
+
+```javascript
+// Fallback relationship updates
+const relUpdates = {
+  familiarity: 0.01,                                    // Always increases
+  affection: sentiment > 0 ? 0.005 : sentiment < -0.3 ? -0.002 : 0,
+  trust: isVulnerable ? 0.02 : 0.002
+};
+```
+
+## Relationship Effects
+
+### On Response Style
+
+**Stranger:**
+> "And you are...? I don't recall asking for your opinion."
+
+**Friend:**
+> "Ugh, it's you again. I SUPPOSE I can help... but only because you're not completely insufferable."
+
+**Family:**
+> "Hey! There you are! I was... I mean, I WASN'T waiting for you or anything! ...how was your day?"
+
+### On Personality Evolution
+
+High-trust relationships affect Beboa's traits:
+
+```javascript
+if (llmRelEval.trustIndicators?.sharedVulnerability) {
+  evolveTrait('vulnerability', 0.005, 'shared_vulnerability');
+  evolveTrait('protectiveness', 0.003, 'trusted_with_vulnerability');
+}
+if (llmRelEval.trustIndicators?.showedCare) {
+  evolveTrait('agreeableness', 0.003, 'showed_care');
+}
+```
+
+## Inside Jokes & Noteworthy Moments
+
+The LLM can detect and store:
+
+- **Inside Jokes**: Callback-worthy phrases or events
+- **Noteworthy Moments**: Significant interactions to reference later
+
+```javascript
+// Stored for future context
+{
+  insideJokes: ["danger noodle incident", "the bebits heist"],
+  notes: [
+    { note: "User's birthday is March 15", time: 1704067200000 },
+    { note: "Gets anxious about work deadlines", time: 1704153600000 }
+  ]
+}
+```
+
+## Viewing Relationships
+
+### Via Jarvis Mode
+```
+"how does beboa feel about @user"
+"user info @user"
+"what's @user's relationship status"
+```
+
+### Via Code
+```javascript
+import { getRelationship } from './services/personality.js';
+
+const rel = getRelationship(userId);
+console.log(`Stage: ${rel.stage.label}`);
+console.log(`Affection: ${(rel.affection * 100).toFixed(0)}%`);
+console.log(`Trust: ${(rel.trust * 100).toFixed(0)}%`);
+console.log(`Familiarity: ${(rel.familiarity * 100).toFixed(0)}%`);
+```
+
+## Configuration
+
+```env
+# Enable LLM relationship evaluation
+LLM_EVALUATOR_ENABLED=true
+
+# Model for evaluation
+LLM_EVALUATOR_MODEL=x-ai/grok-4.1-fast
+
+# Rate limit (shared with mood evaluator)
+LLM_EVALUATOR_RATE_LIMIT=30
+```
+
+## Database Schema
+
+```sql
+CREATE TABLE user_relationships (
+    user_id TEXT PRIMARY KEY,
+    affection REAL DEFAULT 0.3,
+    trust REAL DEFAULT 0.3,
+    familiarity REAL DEFAULT 0.1,
+    rivalry REAL DEFAULT 0,
+    inside_jokes TEXT DEFAULT '[]',
+    nickname TEXT,
+    last_interaction TEXT,
+    interaction_count INTEGER DEFAULT 0,
+    relationship_stage TEXT DEFAULT 'stranger',
+    notes TEXT DEFAULT '[]'
+);
+```
+
+## Best Practices
+
+1. **Trust the LLM evaluation** - It captures nuance better than fixed increments
+2. **Monitor interaction quality** - Logs show `[PERSONALITY] Using LLM relationship eval: meaningful`
+3. **Don't game the system** - Bounded deltas prevent rapid manipulation
+4. **Check inside jokes** - They make conversations feel personal
+5. **Use noteworthy moments** - Reference past interactions naturally

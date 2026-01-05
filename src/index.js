@@ -4,6 +4,9 @@ import { closeDatabase } from './database.js';
 import { handleCommand, getCommandData } from './handlers/commandHandler.js';
 import { handleButton } from './handlers/buttonHandler.js';
 import { handleMention } from './handlers/messageHandler.js';
+import { ingestMessage } from './services/messageIngestion.js';
+import { startProcessor as startEmbeddingProcessor, stopProcessor as stopEmbeddingProcessor } from './services/embeddingQueue.js';
+import { startScheduler as startSummaryScheduler, stopScheduler as stopSummaryScheduler } from './services/summarizer.js';
 
 // Create Discord client with required intents
 const client = new Client({
@@ -49,6 +52,13 @@ client.once(Events.ClientReady, async (readyClient) => {
     // Register slash commands
     await registerCommands();
 
+    // Start server memory background processors
+    if (config.SERVER_MEMORY_ENABLED) {
+        log('INFO', '📝 Server-wide memory: ENABLED');
+        startEmbeddingProcessor();
+        startSummaryScheduler(config.GUILD_ID);
+    }
+
     log('INFO', '🐍 Beboa is ready to serve~');
 });
 
@@ -88,8 +98,20 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 });
 
-// Handle @Beboa mentions for chat
+// Handle all messages - capture for server memory AND handle @mentions
 client.on(Events.MessageCreate, async (message) => {
+    // Capture ALL messages for server-wide memory (non-blocking)
+    // This runs in the background and doesn't affect normal operation
+    if (config.SERVER_MEMORY_ENABLED && !message.author?.bot) {
+        ingestMessage(message).catch(error => {
+            // Silent failure - ingestion should never block normal operation
+            if (error.message !== 'disabled') {
+                log('DEBUG', `[SERVER_MEMORY] Ingestion skipped: ${error.message}`);
+            }
+        });
+    }
+
+    // Handle @Beboa mentions for chat (existing behavior)
     try {
         await handleMention(message);
     } catch (error) {
@@ -111,6 +133,10 @@ client.on(Events.Warn, (warning) => {
 // Graceful shutdown
 function shutdown(signal) {
     log('INFO', `Received ${signal}, shutting down gracefully...`);
+
+    // Stop background processors
+    stopEmbeddingProcessor();
+    stopSummaryScheduler();
 
     // Close database connection
     closeDatabase();

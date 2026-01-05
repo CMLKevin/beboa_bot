@@ -1,0 +1,278 @@
+# Intent Parsing Deep Dive
+
+How Jarvis Mode interprets natural language commands using **LLM-first parsing**.
+
+## The LLM-First Pipeline
+
+Jarvis Mode now uses an LLM as the **primary** intent parser, with pattern matching and keyword analysis as fallbacks.
+
+```
+User Input
+    │
+    ▼
+┌─────────────────────────────────┐
+│ Stage 1: Pending Confirmations  │ ─── Handle "yes"/"no" for dangerous ops
+└──────────────┬──────────────────┘
+               │
+               ▼
+┌─────────────────────────────────┐
+│ Stage 2: LLM Intent Parser      │ ─── PRIMARY: AI understands intent
+│ (x-ai/grok-4.1-fast)            │     confidence > 0.6? Execute!
+└──────────────┬──────────────────┘
+               │ No match or low confidence
+               ▼
+┌─────────────────────────────────┐
+│ Stage 3: Pattern Matching       │ ─── FALLBACK: Regex patterns
+└──────────────┬──────────────────┘
+               │ No match
+               ▼
+┌─────────────────────────────────┐
+│ Stage 4: Intent Keywords        │ ─── FALLBACK: Keyword scoring
+└──────────────┬──────────────────┘
+               │
+               ▼
+┌─────────────────────────────────┐
+│ Stage 5: Context Substitution   │ ─── "them" → last mentioned user
+└─────────────────────────────────┘
+```
+
+## Stage 2: LLM Intent Parser (Primary)
+
+The LLM evaluator understands natural language and extracts structured command data.
+
+### LLM System Prompt
+
+```javascript
+const JARVIS_SYSTEM_PROMPT = `You are a natural language command parser for Beboa Discord bot's admin mode.
+Parse user messages to identify admin commands and extract parameters.
+
+Available commands:
+- give_bebits: Award currency (params: targetUserId, amount)
+- remove_bebits: Deduct currency (params: targetUserId, amount)
+- set_bebits: Set exact balance (params: targetUserId, amount)
+- transfer_bebits: Move between users (params: fromUserId, toUserId, amount)
+- reset_streak: Clear check-in streak (params: targetUserId)
+- user_info: Get user statistics (params: targetUserId)
+- compare_users: Compare two users (params: userId1, userId2)
+- server_stats: Server-wide statistics (no params)
+- set_mood: Change bot mood (params: moodName)
+- bonk, shame, praise, roast, simp_check, fortune, compatibility...
+...
+
+Parse casual language:
+- "give @user 100 bebits" → give_bebits
+- "yeet 50 coins to @user" → give_bebits
+- "check @user's stats" → user_info
+- "roast that fool @user" → roast
+`;
+```
+
+### LLM Output Format
+
+```javascript
+// Example LLM parsing result
+{
+  isCommand: true,                    // Is this an admin command?
+  command: "give_bebits",             // Detected command name
+  confidence: 0.92,                   // How confident (0.0-1.0)
+  params: {
+    targetUserId: "123456789",        // Extracted user ID
+    amount: 100                       // Extracted amount
+  },
+  requiresConfirmation: false,        // Dangerous operation?
+  clarificationNeeded: null,          // Question to ask if unclear
+  reasoning: "User wants to give 100 bebits to the mentioned user"
+}
+```
+
+### Confidence Thresholds
+
+| Confidence | Action |
+|------------|--------|
+| ≥ 0.6 | Execute the command |
+| < 0.6 with clarification | Ask the clarification question |
+| < 0.6 without clarification | Fall through to pattern matching |
+
+### LLM Examples
+
+**Input:** `"yo give @CoolUser like a hundred coins"`
+```javascript
+{
+  isCommand: true,
+  command: "give_bebits",
+  confidence: 0.88,
+  params: { targetUserId: "123456789", amount: 100 },
+  reasoning: "'yo give' indicates giving, 'like a hundred' = 100"
+}
+```
+
+**Input:** `"who's the bigger simp, @user1 or @user2"`
+```javascript
+{
+  isCommand: true,
+  command: "compare_users",
+  confidence: 0.85,
+  params: { userId1: "111", userId2: "222" },
+  reasoning: "Comparing two users for simp status = compare_users"
+}
+```
+
+**Input:** `"make them rich"`
+```javascript
+{
+  isCommand: true,
+  command: "give_bebits",
+  confidence: 0.45,  // Low - who is "them"?
+  clarificationNeeded: "Who do you want to make rich?",
+  reasoning: "'make rich' implies giving bebits but no user specified"
+}
+```
+
+## Confirmation System
+
+For dangerous operations, the LLM can flag `requiresConfirmation: true`:
+
+```javascript
+// remove_bebits, reset_streak, etc.
+if (llmIntent.requiresConfirmation) {
+  pendingConfirmations.set(userId, {
+    command: llmIntent.command,
+    params: llmIntent.params,
+    expires: Date.now() + 60000,  // 60 second timeout
+    execute: async () => { /* ... */ }
+  });
+
+  return "⚠️ This is a destructive operation. Are you sure? (Reply 'yes' to confirm)";
+}
+```
+
+## Stage 3: Pattern Matching (Fallback)
+
+When LLM is unavailable or returns low confidence, regex patterns are tried:
+
+```javascript
+const patterns = {
+  give_bebits: [
+    /(?:give|award|grant)\s+(?:<@!?)?(\d+)(?:>)?\s+(\d+)\s*(?:bebits?|points?)?/i,
+    /(?:<@!?)?(\d+)(?:>)?\s+(?:gets?|receives?)\s+(\d+)\s*(?:bebits?|points?)?/i
+  ],
+  remove_bebits: [
+    /(?:remove|take|yoink)\s+(\d+)\s*(?:bebits?)?\s*from\s+(?:<@!?)?(\d+)(?:>)?/i
+  ],
+  bonk: [
+    /bonk\s+(?:<@!?)?(\d+)(?:>)?/i,
+    /(?:send|put)\s+(?:<@!?)?(\d+)(?:>)?\s+(?:to|in)\s+(?:horny\s+)?jail/i
+  ]
+  // ... more patterns
+};
+```
+
+## Stage 4: Intent Keywords (Fallback)
+
+Keyword scoring as a last resort:
+
+```javascript
+const intentKeywords = {
+  give_bebits: ['give', 'award', 'grant', 'add', 'bless', 'bebits', 'points'],
+  remove_bebits: ['remove', 'take', 'deduct', 'yoink', 'steal', 'minus'],
+  user_info: ['info', 'check', 'who', 'about', 'details', 'lookup'],
+  roast: ['roast', 'burn', 'drag', 'destroy', 'murder'],
+  // ... more keywords
+};
+
+function analyzeIntent(message) {
+  const scores = {};
+  for (const [command, keywords] of Object.entries(intentKeywords)) {
+    let score = 0;
+    for (const keyword of keywords) {
+      if (message.toLowerCase().includes(keyword)) {
+        score += keyword.length;  // Longer = more specific
+      }
+    }
+    if (score > 0) scores[command] = score;
+  }
+  return /* best match with confidence */;
+}
+```
+
+## Stage 5: Context Substitution
+
+Uses conversation history for pronouns:
+
+```javascript
+const conversationContext = {
+  lastMentionedUser: null,
+  lastCommand: null
+};
+
+// "give them 50 more" → resolves "them" from context
+if (message.match(/\b(them|that person)\b/i) && !extractUserId(message)) {
+  const enhanced = message.replace(/them/gi, `<@${context.lastMentionedUser}>`);
+  return parseAndExecuteAdminCommand(enhanced, context);
+}
+```
+
+## Debugging
+
+Enable logging to see which stage handled the command:
+
+```
+[JARVIS] LLM parsed: give_bebits (confidence: 0.92)
+```
+
+Or for fallbacks:
+```
+[JARVIS] LLM not available or low confidence, trying pattern matching
+[JARVIS] Pattern matched: give_bebits
+```
+
+## Configuration
+
+```env
+# Enable LLM-powered parsing (primary)
+LLM_EVALUATOR_ENABLED=true
+
+# Model for intent parsing
+LLM_EVALUATOR_MODEL=x-ai/grok-4.1-fast
+
+# Rate limit for evaluator
+LLM_EVALUATOR_RATE_LIMIT=30
+
+# Cache parsed intents
+LLM_EVALUATOR_CACHE_TTL=60000
+```
+
+## Benefits of LLM-First
+
+| Before (Regex-First) | After (LLM-First) |
+|---------------------|-------------------|
+| 1200+ lines of regex patterns | LLM understands natural language |
+| Misses casual phrasing | "yeet coins at them" works |
+| Rigid parameter positions | Flexible word order |
+| No typo tolerance | Handles typos and variations |
+| Context-blind | Understands conversation flow |
+
+## Adding New Commands
+
+1. Add to the LLM system prompt in `llmEvaluator.js`
+2. Define the command in `adminCommands.js`
+3. The LLM will automatically understand natural variations
+
+```javascript
+// No regex needed! Just add to prompt:
+"- new_command: Description (params: param1, param2)"
+
+// And the execute handler:
+{
+  name: 'new_command',
+  execute: async (match, context) => { /* ... */ }
+}
+```
+
+## Best Practices
+
+1. **Trust the LLM** - It handles edge cases better than regex
+2. **Keep fallbacks** - Pattern matching still works when LLM is rate limited
+3. **Use confirmations** - Dangerous operations should require explicit "yes"
+4. **Check logs** - Verify which parsing stage is being used
+5. **Test natural language** - "yo give that dude 50" should just work

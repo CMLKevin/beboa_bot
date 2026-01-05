@@ -301,7 +301,8 @@ export function extractMentionedUserIds(content) {
  * @param {Object} options
  * @param {Object} options.userData - User data from database
  * @param {string} options.displayName - User's display name
- * @param {string} options.memoryContext - Memory context string
+ * @param {string} options.memoryContext - Memory context string (user-specific)
+ * @param {string} options.serverMemoryContext - Server-wide memory context string
  * @param {string} options.channelContext - Channel context string
  * @param {Object} options.personalityTraits - Current personality traits
  * @param {string} options.personalityPrompt - Dynamic personality prompt from personality service
@@ -313,6 +314,7 @@ export function buildFullContext({
     userData,
     displayName,
     memoryContext = '',
+    serverMemoryContext = '',
     channelContext = '',
     personalityTraits = {},
     personalityPrompt = '',
@@ -364,9 +366,14 @@ export function buildFullContext({
         }
     }
 
-    // Add memory context
+    // Add memory context (user-specific memories)
     if (memoryContext) {
         context += memoryContext;
+    }
+
+    // Add server-wide memory context (ambient awareness of server activity)
+    if (serverMemoryContext) {
+        context += serverMemoryContext;
     }
 
     // Add channel context

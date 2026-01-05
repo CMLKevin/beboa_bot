@@ -1,0 +1,402 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Claude Docs Design System CSS Variables */
+:root {
+  /* Background Colors - Claude Pampas inspired */
+  --bg-primary: #F4F3EE;
+  --bg-secondary: #FFFFFF;
+  --bg-tertiary: #EAE9E4;
+  --bg-code: #1C1C1C;
+
+  /* Text Colors */
+  --text-primary: #191919;
+  --text-secondary: #5C5C5C;
+  --text-muted: #888888;
+  --text-inverse: #F4F3EE;
+
+  /* Accent Colors - Claude Crail */
+  --accent: #C15F3C;
+  --accent-hover: #A84E31;
+  --accent-light: #F8EDE9;
+  --accent-muted: #D4836A;
+
+  /* Border Colors - Claude Cloudy */
+  --border: #E5E4DF;
+  --border-light: #ECEAE5;
+  --border-dark: #D4D3CE;
+
+  /* Code Colors */
+  --code-bg: #1C1C1C;
+  --code-text: #E8E4DD;
+  --inline-code-bg: #EAE9E4;
+  --inline-code-text: #C15F3C;
+
+  /* Shadows */
+  --shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.05);
+  --shadow-medium: 0 8px 24px rgba(0, 0, 0, 0.06);
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-normal: 200ms ease;
+  --transition-slow: 300ms ease;
+
+  /* Layout */
+  --header-height: 64px;
+  --sidebar-width: 260px;
+  --toc-width: 200px;
+  --content-max-width: 680px;
+}
+
+/* Dark Mode */
+.dark {
+  --bg-primary: #191919;
+  --bg-secondary: #242424;
+  --bg-tertiary: #2E2E2E;
+  --bg-code: #0F0F0F;
+
+  --text-primary: #F4F3EE;
+  --text-secondary: #B8B8B8;
+  --text-muted: #757575;
+  --text-inverse: #191919;
+
+  --accent: #D4836A;
+  --accent-hover: #E59A84;
+  --accent-light: #3A2A24;
+  --accent-muted: #C15F3C;
+
+  --border: #3A3A3A;
+  --border-light: #2E2E2E;
+  --border-dark: #4A4A4A;
+
+  --code-bg: #0F0F0F;
+  --code-text: #E8E4DD;
+  --inline-code-bg: #2E2E2E;
+  --inline-code-text: #D4836A;
+}
+
+/* Base Styles */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.75;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color var(--transition-normal), color var(--transition-normal);
+}
+
+/* Typography - Claude Docs style */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  color: var(--text-primary);
+}
+
+h1 {
+  font-size: 2.25rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  margin-bottom: 1rem;
+}
+
+h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-top: 2.5rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-top: 1.75rem;
+  margin-bottom: 0.5rem;
+}
+
+h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+p {
+  margin: 1.25rem 0;
+  color: var(--text-secondary);
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
+}
+
+/* Lists */
+ul, ol {
+  padding-left: 1.5rem;
+  margin: 1rem 0;
+}
+
+li {
+  margin: 0.5rem 0;
+  color: var(--text-secondary);
+}
+
+li::marker {
+  color: var(--accent);
+}
+
+/* Code */
+code {
+  font-family: 'Source Code Pro', 'Fira Code', 'SF Mono', monospace;
+  font-size: 0.875em;
+}
+
+:not(pre) > code {
+  background-color: var(--inline-code-bg);
+  color: var(--inline-code-text);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+pre {
+  background-color: var(--code-bg);
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  overflow-x: auto;
+  margin: 1.5rem 0;
+  box-shadow: var(--shadow-soft);
+}
+
+pre code {
+  background: transparent;
+  color: var(--code-text);
+  padding: 0;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+/* Tables */
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 1.5rem 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-subtle);
+}
+
+th {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.875rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+tr:hover td {
+  background-color: var(--bg-tertiary);
+}
+
+/* Blockquotes */
+blockquote {
+  background-color: var(--bg-tertiary);
+  border-left: 4px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  padding: 1rem 1.25rem;
+  margin: 1.5rem 0;
+  color: var(--text-secondary);
+}
+
+blockquote p {
+  margin: 0;
+}
+
+/* Horizontal Rule */
+hr {
+  border: none;
+  height: 1px;
+  background-color: var(--border);
+  margin: 3rem 0;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Selection */
+::selection {
+  background-color: var(--accent-light);
+  color: var(--accent);
+}
+
+/* Focus */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Utility Classes */
+.prose-custom {
+  max-width: var(--content-max-width);
+}
+
+/* Animation Utilities */
+.animate-in {
+  animation: fadeIn var(--transition-normal);
+}
+
+.animate-fade-in {
+  animation: fadeIn var(--transition-normal);
+}
+
+.animate-slide-up {
+  animation: slideUp var(--transition-slow);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Heading Anchor Links */
+.anchor-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.anchor-link:hover {
+  text-decoration: none;
+  color: var(--accent);
+}
+
+h2:hover .anchor-link::before,
+h3:hover .anchor-link::before {
+  content: '#';
+  position: absolute;
+  margin-left: -1.5rem;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+h2, h3 {
+  position: relative;
+}
+
+/* Component utilities */
+.not-prose * {
+  /* Reset prose styles within components */
+}
+
+/* Smooth height transitions for accordions */
+.transition-height {
+  transition: height var(--transition-normal);
+}
+
+/* Card hover effects */
+.card-hover {
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-soft);
+}
+
+/* Mobile Responsive */
+@media (max-width: 1024px) {
+  :root {
+    --sidebar-width: 260px;
+    --toc-width: 0px;
+  }
+
+  h1 {
+    font-size: 2rem;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --sidebar-width: 0px;
+  }
+
+  h1 {
+    font-size: 1.75rem;
+  }
+
+  pre {
+    border-radius: 8px;
+    padding: 1rem;
+    margin: 1rem -1rem;
+    width: calc(100% + 2rem);
+  }
+}

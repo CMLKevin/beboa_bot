@@ -1,0 +1,234 @@
+---
+title: User Memory
+description: Vector-based per-user long-term memory using text embeddings.
+---
+
+# User Memory System
+
+Beboa uses vector embeddings for per-user long-term memory, enabling contextual recall of facts about individual users.
+
+> **See Also**: For server-wide awareness of all messages, see [Server-Wide Memory](/ai/server-memory).
+
+## How It Works
+
+1. **Extraction**: AI identifies important facts from conversations
+2. **Embedding**: Facts are converted to 1536-dimension vectors
+3. **Storage**: Vectors stored in SQLite with metadata
+4. **Retrieval**: Cosine similarity finds relevant memories
+5. **Context**: Retrieved memories inform responses
+
+## Memory Types
+
+| Type | Description | Example |
+|------|-------------|---------|
+| `fact` | Objective information | "User works as a programmer" |
+| `preference` | User likes/dislikes | "User prefers Python over JavaScript" |
+| `event` | Something that happened | "User's birthday was last week" |
+| `relationship` | Social connections | "User has a sister named Sarah" |
+| `emotional` | Feelings/reactions | "User was sad about job loss" |
+| `context` | Situational info | "User is working on a game project" |
+
+## Configuration
+
+```env
+# Enable memory system
+MEMORY_ENABLED=true
+
+# Auto-extract memories from conversations
+MEMORY_AUTO_EXTRACT=true
+
+# Embedding model
+EMBEDDING_MODEL=openai/text-embedding-3-small
+
+# Memory extraction model
+EXTRACTION_MODEL=x-ai/grok-4.1-fast
+```
+
+## Memory Extraction
+
+When `MEMORY_AUTO_EXTRACT=true`, after each conversation:
+
+```javascript
+const extractionPrompt = `
+Analyze this conversation and extract important facts about the user.
+Return a JSON array of memories:
+
+[
+  {
+    "content": "User is learning guitar",
+    "type": "fact",
+    "importance": 0.7
+  }
+]
+
+Only extract genuinely useful information. Skip small talk.
+`;
+```
+
+### Importance Scoring
+
+| Score | Meaning | Examples |
+|-------|---------|----------|
+| 0.1-0.3 | Minor detail | "User said 'lol'" |
+| 0.4-0.6 | Useful context | "User is busy with exams" |
+| 0.7-0.8 | Important fact | "User has a pet dog named Max" |
+| 0.9-1.0 | Critical info | "User's birthday is March 15" |
+
+## Memory Retrieval
+
+When generating responses, relevant memories are fetched:
+
+```javascript
+// Get top 5 memories relevant to current message
+const memories = await searchMemories(userId, currentMessage, 5);
+
+// Memories are included in context:
+const memoryContext = memories.map(m =>
+    `- ${m.content} (remembered ${timeAgo(m.created_at)})`
+).join('\n');
+```
+
+### Similarity Threshold
+
+Only memories above 0.7 cosine similarity are retrieved:
+
+```javascript
+const SIMILARITY_THRESHOLD = 0.7;
+const relevantMemories = memories.filter(m => m.similarity >= SIMILARITY_THRESHOLD);
+```
+
+## Database Schema
+
+```sql
+CREATE TABLE memories (
+    id INTEGER PRIMARY KEY,
+    user_id TEXT,
+    content TEXT,
+    memory_type TEXT,
+    importance REAL DEFAULT 0.5,
+    embedding BLOB,  -- 1536-dim vector as binary
+    created_at TEXT,
+    last_accessed TEXT,
+    access_count INTEGER DEFAULT 0
+);
+
+CREATE INDEX idx_memories_user ON memories(user_id);
+CREATE INDEX idx_memories_type ON memories(memory_type);
+```
+
+## Viewing Memories
+
+### Via Slash Command
+```
+/memories @user
+```
+
+### Via Jarvis Mode
+```
+"what do you remember about @user"
+"search memories for cats"
+"show @user's memories"
+```
+
+## Managing Memories
+
+### Add Memory (Jarvis Mode)
+```
+"remember that @user likes pizza"
+"note: @user is allergic to peanuts"
+"add memory: @user's birthday is June 5th"
+```
+
+### Search Memories (Jarvis Mode)
+```
+"search memories for birthday"
+"what did @user say about work"
+"find memories about games"
+```
+
+### Delete Memory (Code only)
+```javascript
+import { deleteMemory } from './services/memory.js';
+await deleteMemory(memoryId);
+```
+
+## Memory Decay
+
+Old, unaccessed memories decay in importance:
+
+```javascript
+// Monthly decay
+const monthsSinceAccess = getMonthsSince(lastAccessed);
+const decayFactor = Math.pow(0.95, monthsSinceAccess);
+memory.importance *= decayFactor;
+
+// Remove if importance drops below 0.1
+if (memory.importance < 0.1) {
+    await deleteMemory(memory.id);
+}
+```
+
+## Memory in Responses
+
+Beboa naturally incorporates memories:
+
+**Without memory:**
+> "What do you want? I don't know anything about you."
+
+**With memory:**
+> "Oh, you're back! How's that guitar practice going? Still struggling with F chord? Hehe~"
+
+## Vector Operations
+
+### Embedding Generation
+```javascript
+async function generateEmbedding(text) {
+    const response = await openrouter.embeddings.create({
+        model: process.env.EMBEDDING_MODEL,
+        input: text
+    });
+    return response.data[0].embedding;
+}
+```
+
+### Cosine Similarity
+```javascript
+function cosineSimilarity(a, b) {
+    let dotProduct = 0;
+    let normA = 0;
+    let normB = 0;
+    for (let i = 0; i < a.length; i++) {
+        dotProduct += a[i] * b[i];
+        normA += a[i] * a[i];
+        normB += b[i] * b[i];
+    }
+    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+```
+
+## Best Practices
+
+1. **Filter noise** - Don't extract trivial information
+2. **Respect privacy** - Don't store sensitive personal data
+3. **Prune regularly** - Remove low-value memories
+4. **Test retrieval** - Ensure relevant memories surface
+5. **Balance extraction** - Too many memories slow retrieval
+
+## Performance Notes
+
+- Embedding generation: ~100-200ms per request
+- Vector search: O(n) over all user memories
+- For large memory sets (>1000), consider batching
+- Embedding model costs: ~$0.00002 per 1K tokens
+
+## User Memory vs Server Memory
+
+| Feature | User Memory | Server Memory |
+|---------|-------------|---------------|
+| Scope | Per-user facts | All server messages |
+| Source | AI-extracted facts | Raw message content |
+| Storage | `memories` table | `server_messages` table |
+| Retrieval | User-specific search | Server-wide semantic search |
+| Purpose | Remember user preferences | Ambient conversation awareness |
+
+Both systems complement each other - User Memory stores personal facts, while [Server Memory](/ai/server-memory) provides conversational context.

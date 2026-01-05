@@ -1,0 +1,338 @@
+# Database Migrations
+
+Guide to safely updating the database schema.
+
+## Migration System
+
+Beboa uses a simple migration system to track schema changes:
+
+```
+data/
+├── beboa.db           # Main database
+└── migrations/        # Migration scripts (optional)
+```
+
+## Migration Table
+
+```sql
+CREATE TABLE IF NOT EXISTS migrations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    applied_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+## Running Migrations
+
+Migrations run automatically on startup in `src/services/database.js`:
+
+```javascript
+function runMigrations() {
+    const migrations = [
+        { name: '001_initial_schema', up: migration001 },
+        { name: '002_add_memories', up: migration002 },
+        { name: '003_add_chat_history', up: migration003 },
+        // Add new migrations here
+    ];
+
+    for (const migration of migrations) {
+        const applied = db.prepare(
+            'SELECT 1 FROM migrations WHERE name = ?'
+        ).get(migration.name);
+
+        if (!applied) {
+            console.log(`[DB] Running migration: ${migration.name}`);
+            migration.up(db);
+            db.prepare('INSERT INTO migrations (name) VALUES (?)').run(migration.name);
+        }
+    }
+}
+```
+
+## Writing Migrations
+
+### Adding a Column
+
+```javascript
+function migration004AddUserTimezone(db) {
+    // Check if column exists
+    const columns = db.pragma('table_info(users)');
+    const hasTimezone = columns.some(c => c.name === 'timezone');
+
+    if (!hasTimezone) {
+        db.exec(`
+            ALTER TABLE users
+            ADD COLUMN timezone TEXT DEFAULT 'UTC'
+        `);
+    }
+}
+```
+
+### Adding a Table
+
+```javascript
+function migration005AddAchievements(db) {
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS achievements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            achievement_id TEXT NOT NULL,
+            unlocked_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(user_id),
+            UNIQUE(user_id, achievement_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_achievements_user
+        ON achievements(user_id);
+    `);
+}
+```
+
+### Adding an Index
+
+```javascript
+function migration006AddBebitIndex(db) {
+    db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_users_bebits_desc
+        ON users(bebits DESC)
+    `);
+}
+```
+
+### Modifying Data
+
+```javascript
+function migration007NormalizeUsernames(db) {
+    // Get all users
+    const users = db.prepare('SELECT user_id, username FROM users').all();
+
+    // Update each user
+    const update = db.prepare('UPDATE users SET username = ? WHERE user_id = ?');
+
+    for (const user of users) {
+        if (user.username) {
+            const normalized = user.username.toLowerCase().trim();
+            update.run(normalized, user.user_id);
+        }
+    }
+}
+```
+
+## Migration Best Practices
+
+### Always Use IF NOT EXISTS
+
+```javascript
+// Good
+db.exec('CREATE TABLE IF NOT EXISTS new_table (...)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_name ON table(column)');
+
+// Bad - will fail if run twice
+db.exec('CREATE TABLE new_table (...)');
+```
+
+### Check Before Altering
+
+```javascript
+function safeAddColumn(db, table, column, definition) {
+    const columns = db.pragma(`table_info(${table})`);
+    const exists = columns.some(c => c.name === column);
+
+    if (!exists) {
+        db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+        return true;
+    }
+    return false;
+}
+
+// Usage
+safeAddColumn(db, 'users', 'new_column', 'TEXT DEFAULT NULL');
+```
+
+### Use Transactions for Data Migrations
+
+```javascript
+function migration008ComplexDataMigration(db) {
+    const transaction = db.transaction(() => {
+        // Multiple operations
+        db.exec('UPDATE users SET status = "active" WHERE status IS NULL');
+        db.exec('DELETE FROM old_table WHERE migrated = 1');
+        db.exec('INSERT INTO new_table SELECT * FROM temp_table');
+    });
+
+    transaction();
+}
+```
+
+### Log Migration Progress
+
+```javascript
+function migration009LargeMigration(db) {
+    console.log('[MIGRATION] Starting large migration...');
+
+    const total = db.prepare('SELECT COUNT(*) as count FROM large_table').get().count;
+    let processed = 0;
+
+    const rows = db.prepare('SELECT * FROM large_table').all();
+
+    for (const row of rows) {
+        // Process row
+        processed++;
+        if (processed % 1000 === 0) {
+            console.log(`[MIGRATION] Processed ${processed}/${total}`);
+        }
+    }
+
+    console.log('[MIGRATION] Complete!');
+}
+```
+
+## Registering Migrations
+
+Migrations are registered in `src/migrations/index.js`:
+
+```javascript
+import migration001 from './001_initial_schema.js';
+import migration002 from './002_add_memories.js';
+import migration003 from './003_add_chat_history.js';
+import migration004 from './004_add_personality.js';
+import migration005 from './005_add_relationships.js';
+import migration006 from './006_add_server_memory.js';
+
+export const migrations = [
+    migration001,
+    migration002,
+    migration003,
+    migration004,
+    migration005,
+    migration006,  // Server-wide memory tables
+];
+```
+
+## Recent Migrations
+
+### 006_add_server_memory
+
+Adds server-wide memory tables for ambient awareness:
+
+```javascript
+// Tables created:
+// - server_messages: Raw storage for ALL server messages
+// - server_embeddings: Vector embeddings for important messages
+// - channel_summaries: Periodic channel rollups (hourly/daily)
+// - active_topics: Topic lifecycle tracking
+// - embedding_queue: Background processing queue
+// - channel_metadata: Channel statistics
+```
+
+See [Server-Wide Memory](/ai/server-memory) for full documentation.
+
+## Rolling Back
+
+SQLite doesn't support easy rollbacks. For safety:
+
+1. **Always backup before migrations**
+```bash
+cp data/beboa.db data/beboa_backup_$(date +%Y%m%d_%H%M%S).db
+```
+
+2. **Write rollback scripts** (optional)
+```javascript
+const migrations = [
+    {
+        name: '004_add_timezone',
+        up: (db) => {
+            db.exec('ALTER TABLE users ADD COLUMN timezone TEXT');
+        },
+        down: (db) => {
+            // SQLite doesn't support DROP COLUMN easily
+            // Would need to recreate table
+        }
+    }
+];
+```
+
+3. **Test on copy first**
+```bash
+cp data/beboa.db data/test.db
+# Run migration on test.db first
+```
+
+## Complete Migration Example
+
+```javascript
+// In src/services/database.js
+
+function migration010AddGuildSettings(db) {
+    // Create new table
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS guild_settings (
+            guild_id TEXT PRIMARY KEY,
+            checkin_channel_id TEXT,
+            notification_channel_id TEXT,
+            admin_role_id TEXT,
+            prefix TEXT DEFAULT '!',
+            language TEXT DEFAULT 'en',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    // Add indexes
+    db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_guild_settings_updated
+        ON guild_settings(updated_at)
+    `);
+
+    // Migrate existing config if from single-guild setup
+    const guildId = process.env.GUILD_ID;
+    if (guildId) {
+        db.prepare(`
+            INSERT OR IGNORE INTO guild_settings
+            (guild_id, checkin_channel_id, notification_channel_id, admin_role_id)
+            VALUES (?, ?, ?, ?)
+        `).run(
+            guildId,
+            process.env.CHECKIN_CHANNEL_ID,
+            process.env.NOTIFICATION_CHANNEL_ID,
+            process.env.ADMIN_ROLE_ID
+        );
+    }
+
+    console.log('[MIGRATION] Guild settings table created');
+}
+
+// Register
+const migrations = [
+    // ... existing migrations
+    { name: '010_add_guild_settings', up: migration010AddGuildSettings },
+];
+```
+
+## Troubleshooting
+
+### Migration Won't Run
+
+Check if already applied:
+```sql
+SELECT * FROM migrations WHERE name = 'migration_name';
+```
+
+### Need to Re-run Migration
+
+**Dangerous - only for development:**
+```sql
+DELETE FROM migrations WHERE name = 'migration_name';
+```
+
+### Database Locked
+
+Stop all bot instances before running migrations.
+
+### Check Migration Status
+
+```javascript
+function getMigrationStatus() {
+    return db.prepare('SELECT * FROM migrations ORDER BY applied_at').all();
+}
+```

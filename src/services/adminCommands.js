@@ -14,6 +14,7 @@ import db, { getUser, updateBebits, resetStreak, appendUserNotes, getStats, getT
 import { storeMemory, searchMemories, MemoryTypes } from './memory.js';
 import { getPersonalityState, setMood, getRelationship, updateRelationship, Moods } from './personality.js';
 import { chatCompletion } from './openrouter.js';
+import { parseJarvisIntent, isAvailable as isLLMEvaluatorAvailable } from './llmEvaluator.js';
 
 // Prepared statements for admin permissions
 const statements = {
@@ -1447,11 +1448,12 @@ async function executeByIntent(intentAnalysis, entities, message, context) {
 
 /**
  * Parse and execute admin command from natural language
- * Uses a multi-stage approach:
+ * Uses an LLM-first approach with fallbacks:
  * 1. Check for pending confirmations
- * 2. Try exact pattern matching
- * 3. Try intent-based matching with entity extraction
- * 4. Fall back to AI parsing for complex cases
+ * 2. Try LLM-powered intent parsing (primary)
+ * 3. Try exact pattern matching (fallback)
+ * 4. Try intent-based keyword matching (fallback)
+ * 5. Check conversation context for follow-ups
  */
 export async function parseAndExecuteAdminCommand(message, context) {
     if (!canExecuteAdminCommands(context.userId)) {
@@ -1485,8 +1487,73 @@ export async function parseAndExecuteAdminCommand(message, context) {
     }
 
     // ========================================
-    // STAGE 2: Try exact pattern matching
+    // STAGE 2: LLM-powered intent parsing (PRIMARY)
     // ========================================
+    if (isLLMEvaluatorAvailable()) {
+        const prevContext = getConversationContext(context.userId);
+        const recentCommands = prevContext ? [prevContext.lastCommand] : [];
+
+        const llmIntent = await parseJarvisIntent(message, {
+            recentCommands,
+            userId: context.userId
+        });
+
+        if (llmIntent && llmIntent.isCommand && llmIntent.confidence >= 0.6) {
+            console.log(`[JARVIS] LLM parsed: ${llmIntent.command} (confidence: ${llmIntent.confidence})`);
+
+            // Handle clarification needed
+            if (llmIntent.clarificationNeeded) {
+                return {
+                    matched: true,
+                    result: {
+                        success: true,
+                        message: llmIntent.clarificationNeeded
+                    },
+                    needsClarification: true
+                };
+            }
+
+            // Handle confirmation for dangerous operations
+            if (llmIntent.requiresConfirmation) {
+                pendingConfirmations.set(context.userId, {
+                    command: llmIntent.command,
+                    params: llmIntent.params,
+                    expires: Date.now() + CONFIRMATION_TIMEOUT,
+                    execute: async () => {
+                        return await executeFromLLMIntent(llmIntent, message, context);
+                    }
+                });
+                return {
+                    matched: true,
+                    result: {
+                        success: true,
+                        message: `⚠️ This is a ${llmIntent.command.includes('remove') ? 'destructive' : 'sensitive'} operation. Are you sure? (Reply "yes" to confirm)`
+                    }
+                };
+            }
+
+            // Execute the command
+            const result = await executeFromLLMIntent(llmIntent, message, context);
+            if (result) {
+                return result;
+            }
+        } else if (llmIntent && llmIntent.clarificationNeeded) {
+            // Low confidence but has a question to ask
+            return {
+                matched: true,
+                result: {
+                    success: true,
+                    message: llmIntent.clarificationNeeded
+                },
+                needsClarification: true
+            };
+        }
+    }
+
+    // ========================================
+    // STAGE 3: Pattern matching (FALLBACK)
+    // ========================================
+    console.log('[JARVIS] LLM not available or low confidence, trying pattern matching');
     for (const cmd of adminCommands) {
         for (const pattern of cmd.patterns) {
             const match = message.match(pattern);
@@ -1517,7 +1584,7 @@ export async function parseAndExecuteAdminCommand(message, context) {
     }
 
     // ========================================
-    // STAGE 3: Intent-based matching
+    // STAGE 4: Intent-based keyword matching (FALLBACK)
     // ========================================
     const entities = extractEntities(message);
     const intentAnalysis = analyzeIntent(message);
@@ -1526,58 +1593,6 @@ export async function parseAndExecuteAdminCommand(message, context) {
         const intentResult = await executeByIntent(intentAnalysis, entities, message, context);
         if (intentResult) {
             return intentResult;
-        }
-    }
-
-    // ========================================
-    // STAGE 4: AI-assisted parsing (for complex/ambiguous cases)
-    // ========================================
-    if (config.OPENROUTER_API_KEY && isLikelyCommand(message)) {
-        const aiResult = await parseWithAI(message, context);
-
-        // If AI needs clarification, ask
-        if (aiResult.clarification && aiResult.confidence < 0.5) {
-            return {
-                matched: true,
-                result: {
-                    success: true,
-                    message: aiResult.clarification
-                },
-                needsClarification: true
-            };
-        }
-
-        if (aiResult.command && aiResult.confidence >= 0.6) {
-            const cmd = adminCommands.find(c => c.name === aiResult.command);
-            if (cmd) {
-                console.log(`[JARVIS] AI matched: ${cmd.name} (${aiResult.confidence})`);
-
-                // Build synthetic match from AI-extracted params
-                const syntheticMatch = [message];
-                if (aiResult.params) {
-                    if (aiResult.params.userId) syntheticMatch.push(aiResult.params.userId);
-                    if (aiResult.params.amount !== null && aiResult.params.amount !== undefined) {
-                        syntheticMatch.push(String(aiResult.params.amount));
-                    }
-                    if (aiResult.params.userId2) syntheticMatch.push(aiResult.params.userId2);
-                    if (aiResult.params.text) syntheticMatch.push(aiResult.params.text);
-                }
-
-                try {
-                    const result = await cmd.execute(syntheticMatch, context);
-
-                    updateConversationContext(context.userId, {
-                        lastCommand: cmd.name,
-                        subject: aiResult.params?.userId,
-                        lastMessage: message
-                    });
-
-                    return { matched: true, command: cmd.name, result, method: 'ai', aiAssisted: true };
-                } catch (error) {
-                    console.error(`[JARVIS] AI-assisted execution failed:`, error);
-                    // Don't return error - fall through to not matched
-                }
-            }
         }
     }
 
@@ -1600,6 +1615,112 @@ export async function parseAndExecuteAdminCommand(message, context) {
     }
 
     return { matched: false };
+}
+
+/**
+ * Execute a command from LLM-parsed intent
+ */
+async function executeFromLLMIntent(llmIntent, originalMessage, context) {
+    const cmd = adminCommands.find(c => c.name === llmIntent.command);
+    if (!cmd) {
+        console.error(`[JARVIS] Unknown command from LLM: ${llmIntent.command}`);
+        return null;
+    }
+
+    // Build synthetic match from LLM-extracted params
+    const syntheticMatch = [originalMessage];
+    const params = llmIntent.params || {};
+
+    // Map params based on command type
+    switch (llmIntent.command) {
+        case 'give_bebits':
+        case 'remove_bebits':
+            if (params.targetUserId) syntheticMatch.push(params.targetUserId);
+            if (params.amount !== null) syntheticMatch.push(String(params.amount));
+            break;
+
+        case 'set_bebits':
+            if (params.targetUserId) syntheticMatch.push(params.targetUserId);
+            if (params.amount !== null) syntheticMatch.push(String(params.amount));
+            break;
+
+        case 'transfer_bebits':
+            if (params.amount !== null) syntheticMatch.push(String(params.amount));
+            if (params.fromUserId) syntheticMatch.push(params.fromUserId);
+            if (params.toUserId) syntheticMatch.push(params.toUserId);
+            break;
+
+        case 'compare_users':
+        case 'compatibility':
+            if (params.userId1) syntheticMatch.push(params.userId1);
+            if (params.userId2) syntheticMatch.push(params.userId2);
+            break;
+
+        case 'user_info':
+        case 'reset_streak':
+        case 'bonk':
+        case 'shame':
+        case 'praise':
+        case 'roast':
+        case 'simp_check':
+        case 'crown':
+        case 'dethrone':
+        case 'fortune':
+        case 'spin_wheel':
+            if (params.targetUserId) syntheticMatch.push(params.targetUserId);
+            break;
+
+        case 'set_mood':
+            if (params.moodName) syntheticMatch.push(params.moodName);
+            break;
+
+        case 'add_note':
+            if (params.targetUserId) syntheticMatch.push(params.targetUserId);
+            if (params.text) syntheticMatch.push(params.text);
+            break;
+
+        case 'search_memories':
+            if (params.text) syntheticMatch.push(params.text);
+            break;
+
+        case 'announce':
+            if (params.text) syntheticMatch.push(params.text);
+            break;
+
+        case 'mass_give_bebits':
+            if (params.amount !== null) syntheticMatch.push(String(params.amount));
+            break;
+
+        default:
+            // For commands without specific params, just use original message
+            break;
+    }
+
+    try {
+        const result = await cmd.execute(syntheticMatch, context);
+
+        // Update conversation context
+        updateConversationContext(context.userId, {
+            lastCommand: cmd.name,
+            subject: params.targetUserId || params.userId1,
+            lastMessage: originalMessage
+        });
+
+        return {
+            matched: true,
+            command: cmd.name,
+            result,
+            method: 'llm',
+            reasoning: llmIntent.reasoning
+        };
+    } catch (error) {
+        console.error(`[JARVIS] LLM-assisted execution failed:`, error);
+        return {
+            matched: true,
+            command: cmd.name,
+            result: { success: false, message: `Oops, that didn't work: ${error.message}` }
+        };
+    }
 }
 
 /**

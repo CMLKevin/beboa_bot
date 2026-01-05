@@ -1,0 +1,273 @@
+---
+title: Tool Calls
+description: Function-calling framework for image generation, dice rolling, and more.
+---
+
+# Tool Calls Framework
+
+Beboa can perform actions through a function-calling interface, enabling image generation, dice rolling, and extensible capabilities.
+
+## How Tool Calls Work
+
+1. AI receives message with tool definitions
+2. AI decides if a tool is needed
+3. Tool call is detected in response
+4. Tool is executed
+5. Result is incorporated into response
+
+## Available Tools
+
+### Image Generation
+
+**Trigger phrases:**
+- "draw me a picture of..."
+- "generate an image of..."
+- "create art showing..."
+- "make a picture of..."
+
+**Configuration:**
+```env
+IMAGE_GEN_ENABLED=true
+IMAGE_MODEL=bytedance-seed/seedream-4.5
+```
+
+**Example:**
+```
+User: "Draw me a cute snake wearing a top hat"
+Beboa: "Fine, I'll make your silly picture... *grumbles artistically*"
+[Generates and sends image]
+```
+
+### Dice Rolling
+
+**Trigger phrases:**
+- "roll a d20"
+- "roll 2d6"
+- "roll dice"
+
+**Example:**
+```
+User: "Roll 3d6 for me"
+Beboa: "Let's see your fate... 🎲"
+[Rolls: 4 + 2 + 6 = 12]
+"Hmph. Could be worse."
+```
+
+### Memory Search
+
+**Trigger phrases:**
+- "what do you remember about..."
+- "do you know anything about..."
+
+**Example:**
+```
+User: "Do you remember when I told you about my cat?"
+Beboa: *searches memories*
+"Oh yes, you mentioned Whiskers likes to knock things off tables. A creature after my own heart."
+```
+
+## Tool Definition Format
+
+Tools are defined in JSON Schema format:
+
+```javascript
+const tools = [
+    {
+        type: "function",
+        function: {
+            name: "generate_image",
+            description: "Generate an image based on a prompt",
+            parameters: {
+                type: "object",
+                properties: {
+                    prompt: {
+                        type: "string",
+                        description: "Description of the image to generate"
+                    },
+                    style: {
+                        type: "string",
+                        enum: ["realistic", "anime", "cartoon", "artistic"],
+                        description: "Art style for the image"
+                    }
+                },
+                required: ["prompt"]
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "roll_dice",
+            description: "Roll dice in NdS format",
+            parameters: {
+                type: "object",
+                properties: {
+                    dice: {
+                        type: "string",
+                        description: "Dice notation like 2d6, d20, 4d8"
+                    }
+                },
+                required: ["dice"]
+            }
+        }
+    }
+];
+```
+
+## Tool Response Flow
+
+```
+User Message
+     │
+     ▼
+┌─────────────────────┐
+│ AI Processing       │
+│ - Sees tool defs    │
+│ - Decides if needed │
+└──────────┬──────────┘
+           │
+           ▼
+    Tool Call Detected?
+           │
+    ┌──────┴──────┐
+    │             │
+    No            Yes
+    │             │
+    ▼             ▼
+ Regular    ┌─────────────────┐
+ Response   │ Parse tool call │
+            │ Execute tool    │
+            │ Get result      │
+            └────────┬────────┘
+                     │
+                     ▼
+            ┌─────────────────┐
+            │ Continue AI     │
+            │ with tool result│
+            └────────┬────────┘
+                     │
+                     ▼
+              Final Response
+```
+
+## Configuration
+
+```env
+# Enable tool framework
+TOOLS_ENABLED=true
+
+# Individual tools
+IMAGE_GEN_ENABLED=true
+
+# Image model
+IMAGE_MODEL=bytedance-seed/seedream-4.5
+```
+
+## Adding Custom Tools
+
+### Step 1: Define the Tool
+
+In `src/services/tools.js`:
+
+```javascript
+const customTool = {
+    type: "function",
+    function: {
+        name: "my_custom_tool",
+        description: "What this tool does",
+        parameters: {
+            type: "object",
+            properties: {
+                param1: {
+                    type: "string",
+                    description: "First parameter"
+                }
+            },
+            required: ["param1"]
+        }
+    }
+};
+```
+
+### Step 2: Implement Handler
+
+```javascript
+async function handleMyCustomTool(params) {
+    const { param1 } = params;
+    // Do something
+    return { success: true, result: "Tool output" };
+}
+```
+
+### Step 3: Register Tool
+
+```javascript
+const toolHandlers = {
+    generate_image: handleImageGeneration,
+    roll_dice: handleDiceRoll,
+    my_custom_tool: handleMyCustomTool  // Add here
+};
+```
+
+### Step 4: Add to Tools Array
+
+```javascript
+const enabledTools = [
+    // ... existing tools
+    customTool
+];
+```
+
+## Tool Call Detection
+
+The system detects tool calls in AI responses:
+
+```javascript
+function detectToolCall(response) {
+    // Check for function_call in response
+    if (response.choices[0].message.function_call) {
+        return {
+            name: response.choices[0].message.function_call.name,
+            arguments: JSON.parse(response.choices[0].message.function_call.arguments)
+        };
+    }
+    return null;
+}
+```
+
+## Error Handling
+
+Tools should handle errors gracefully:
+
+```javascript
+async function handleImageGeneration(params) {
+    try {
+        const image = await generateImage(params.prompt);
+        return { success: true, imageUrl: image.url };
+    } catch (error) {
+        return {
+            success: false,
+            error: "Image generation failed. The server might be busy."
+        };
+    }
+}
+```
+
+Beboa will respond appropriately to failures:
+> "Tch. The image thing isn't working right now. Try again later... or don't. See if I care."
+
+## Tool Costs
+
+| Tool | Approximate Cost |
+|------|------------------|
+| Image Generation | $0.01-0.05 per image |
+| Dice Rolling | Free (local) |
+| Memory Search | $0.0001 per search |
+
+## Best Practices
+
+1. **Define clear triggers** - Users should naturally invoke tools
+2. **Handle errors gracefully** - Always have fallback responses
+3. **Limit expensive tools** - Consider rate limiting image gen
+4. **Log tool usage** - Track what tools are popular
+5. **Test thoroughly** - Ensure tools work before deploying

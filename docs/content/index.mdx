@@ -1,0 +1,107 @@
+---
+title: Beboa Documentation
+description: Comprehensive documentation for Beboa - an AI-powered Discord companion with evolving personality, semantic memory, and natural language admin commands.
+---
+
+# Welcome to Beboa
+
+Beboa is an AI-powered Discord companion bot designed for the BubbleBebe community. She's a magical talking snake - actually a cat in a snake costume who insists she's real - with a dynamic personality that evolves through interactions.
+
+## What Makes Beboa Special
+
+Unlike traditional Discord bots, Beboa features a sophisticated AI system that creates genuine, evolving relationships with users:
+
+- **Dynamic Personality** - 14 personality traits that shift based on interactions
+- **Mood System** - 11 moods that affect how she responds in real-time
+- **Semantic Memory** - Long-term memory using vector embeddings
+- **Relationship Tracking** - Individual relationships with each user
+- **Natural Language Admin** - Jarvis Mode 2.0 for intuitive server management
+
+## Core Features
+
+### Engagement System
+
+The Bebits economy keeps your community active:
+
+| Feature | Description |
+|---------|-------------|
+| Daily Check-ins | Earn 1 Bebit per day |
+| Streak Tracking | 72-hour grace period before reset |
+| Leaderboard | Competitive community rankings |
+| Reward Shop | 11 tiers from 1-500 Bebits |
+
+### AI Chat
+
+Mention @Beboa anywhere to start a conversation. She maintains context across messages and remembers important details about each user.
+
+### Jarvis Mode 2.0
+
+Server admins can use natural language to manage the server:
+
+```
+"give kevin 50 bebits"
+"reset sarah's streak"
+"show me the leaderboard"
+```
+
+## Architecture at a Glance
+
+```
+Discord Gateway
+       ↓
+┌─────────────────────────────────────┐
+│          Message Handlers           │
+│  Commands │ @Mentions │ Jarvis Mode │
+└─────────────────────────────────────┘
+       ↓
+┌─────────────────────────────────────┐
+│           Services Layer            │
+│  OpenRouter │ Memory │ Personality  │
+│  Embedding  │ Tools  │ LLM Eval     │
+└─────────────────────────────────────┘
+       ↓
+┌─────────────────────────────────────┐
+│       SQLite Database (10 tables)   │
+│  users, memories, personality, ...  │
+└─────────────────────────────────────┘
+```
+
+## Tech Stack
+
+| Component | Technology |
+|-----------|------------|
+| Runtime | Node.js 20+ |
+| Framework | discord.js v14 |
+| Database | SQLite (better-sqlite3) |
+| AI Provider | OpenRouter API |
+| Embeddings | text-embedding-3-small |
+| Default Model | x-ai/grok-4.1-fast |
+
+## Getting Started
+
+Ready to set up Beboa for your server?
+
+1. **[Installation](/getting-started/installation)** - Clone and install dependencies
+2. **[Configuration](/getting-started/configuration)** - Set up environment variables
+3. **[Quick Start](/getting-started/quickstart)** - Get running in 5 minutes
+
+## Documentation Sections
+
+### For Users
+- [Features Overview](/features) - What Beboa can do
+- [User Commands](/commands/user) - Available slash commands
+- [Jarvis Mode](/jarvis) - Natural language admin commands
+
+### For Developers
+- [Architecture](/architecture/structure) - Project structure and design
+- [AI Systems](/ai) - Personality, memory, and mood systems
+- [Extending Beboa](/dev/commands) - Add custom commands and tools
+
+## Support
+
+- **GitHub**: [CMLKevin/beboa_evo](https://github.com/CMLKevin/beboa_evo)
+- **Issues**: Report bugs or request features on GitHub
+
+---
+
+*Beboa is a cat in a snake costume who INSISTS she's a real snake. Actually, she's a Snake Goddess cursed into this form - helping Bebe master the HeartB Crystal will restore her. But that's a secret.*

@@ -1,0 +1,389 @@
+---
+title: Server-Wide Memory
+description: Ambient awareness of all server activity through semantic memory.
+---
+
+# Server-Wide Memory System
+
+Beboa has ambient awareness of ALL messages sent in the server, not just direct @mentions. This enables natural references to ongoing conversations, topic tracking, and deep knowledge recall.
+
+## Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  Server-Wide Memory System                   │
+├─────────────────────────────────────────────────────────────┤
+│                                                               │
+│  ┌─────────────┐   ┌─────────────┐   ┌─────────────────┐    │
+│  │  Message    │   │  Embedding  │   │  Summarizer     │    │
+│  │  Ingestion  │   │  Queue      │   │  Service        │    │
+│  └──────┬──────┘   └──────┬──────┘   └────────┬────────┘    │
+│         │                 │                    │              │
+│         ▼                 ▼                    ▼              │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │              Server Memory Database                    │   │
+│  │  (messages, embeddings, summaries, topics)            │   │
+│  └───────────────────────┬──────────────────────────────┘   │
+│                          │                                    │
+│                          ▼                                    │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │              Retrieval Service                         │   │
+│  │  (ambient, semantic search, topic tracking)           │   │
+│  └──────────────────────────────────────────────────────┘   │
+│                                                               │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Capabilities
+
+### Ambient Awareness
+
+Beboa notices what's happening around the server:
+
+> "Oh, I saw you and Alex debating pizza toppings earlier. Pineapple team, huh? Bold choice~"
+
+### Deep Knowledge Recall
+
+Specific quotes and details from past conversations:
+
+> "Didn't you say last week that you were 'done with JavaScript forever'? And yet here we are~"
+
+### Topic Tracking
+
+Ongoing discussions across channels:
+
+> "People keep talking about 'server movie night' - is that actually happening?"
+
+## Configuration
+
+```env
+# Enable server-wide memory (default: true)
+SERVER_MEMORY_ENABLED=true
+
+# Channels to monitor (empty = all channels)
+SERVER_MEMORY_CHANNELS=
+
+# Channels to exclude (comma-separated IDs)
+SERVER_MEMORY_EXCLUDED_CHANNELS=
+
+# Importance threshold for embedding (0-1, default: 0.3)
+IMPORTANCE_THRESHOLD=0.3
+
+# Embedding batch size (default: 10)
+EMBEDDING_BATCH_SIZE=10
+
+# Embedding processing interval in ms (default: 30000)
+EMBEDDING_INTERVAL_MS=30000
+
+# Enable hourly channel summaries (default: true)
+HOURLY_SUMMARY_ENABLED=true
+
+# Enable daily channel summaries (default: true)
+DAILY_SUMMARY_ENABLED=true
+
+# How long to retain messages in days (default: 30)
+SERVER_MEMORY_RETENTION_DAYS=30
+```
+
+## How It Works
+
+### 1. Message Ingestion
+
+Every message in the server is captured (non-blocking):
+
+```javascript
+// In index.js
+client.on(Events.MessageCreate, async (message) => {
+    if (config.SERVER_MEMORY_ENABLED && !message.author.bot) {
+        ingestMessage(message).catch(() => {}); // Silent, non-blocking
+    }
+});
+```
+
+### 2. Importance Scoring
+
+Messages are scored for importance (0.0-1.0):
+
+| Factor | Weight | Description |
+|--------|--------|-------------|
+| Content length | 0.15 | 10-50 words is optimal |
+| Question patterns | 0.20 | Contains ? or question words |
+| Named entities | 0.15 | @mentions, roles, channels |
+| Topic keywords | 0.15 | "project", "idea", "plan", etc. |
+| Emotional intensity | 0.10 | !, CAPS, emotional words |
+| Breaking silence | 0.10 | First message after 30+ min |
+| Attachments | 0.05 | Has images/files |
+
+**Default threshold: 0.3** - approximately 30% of messages get embedded.
+
+### 3. Background Embedding
+
+High-importance messages are queued for embedding:
+
+```javascript
+// Runs every 30 seconds
+const batchSize = 10;
+const pending = getPendingQueue(batchSize);
+const embeddings = await generateEmbedding(pending.map(m => m.content));
+storeEmbeddings(embeddings);
+```
+
+### 4. Periodic Summarization
+
+Channels are summarized on schedule:
+
+| Period | Frequency | Min Messages | Purpose |
+|--------|-----------|--------------|---------|
+| Hourly | :00 each hour | 5 | Topic tracking |
+| Daily | 2:00 AM | 20 | Channel digest |
+
+### 5. Context Retrieval
+
+When Beboa responds, server memory is retrieved:
+
+```javascript
+const serverContext = await buildServerMemoryContext(
+    guildId,
+    channelId,
+    userMessage,
+    userId
+);
+```
+
+## Context Injection
+
+Server memory is injected into Beboa's system prompt:
+
+```
+[SERVER AWARENESS - What you've noticed around the server]
+You've been aware of these recent happenings:
+- (here) Alex: "has anyone tried the new pizza place..." (10 min ago)
+- (other channel) Jordan: "organizing a Minecraft session..." (25 min ago)
+
+[Reference casually if relevant - don't force it]
+
+[RELEVANT SERVER MEMORIES - Details you remember]
+- Alex said: "pineapple on pizza is a crime" (today, #general)
+- Jordan mentioned: "we should do more game nights" (2 days ago)
+
+[Reference specific details when relevant to the conversation]
+
+[ONGOING DISCUSSIONS - Topics people keep bringing up]
+- "Server Movie Night" (12 mentions today)
+- "New art commission prices" (8 mentions)
+
+[You can reference these naturally]
+```
+
+## Retrieval Modes
+
+### Ambient Mode
+
+Recent activity awareness without semantic search:
+
+```javascript
+const ambient = await getAmbientContext(guildId, channelId, {
+    lookbackMinutes: 60,
+    limit: 10
+});
+```
+
+### Deep Mode
+
+Semantic search for specific details:
+
+```javascript
+const relevant = await searchServerMemories(query, {
+    guildId,
+    limit: 5,
+    threshold: 0.4
+});
+```
+
+### Topic Mode
+
+Active discussion tracking:
+
+```javascript
+const topics = getActiveTopics(guildId, 5);
+// Returns: [{ topic_name, mention_count, last_seen_at, status }]
+```
+
+## Database Tables
+
+### server_messages
+
+Raw storage for ALL messages:
+
+```sql
+CREATE TABLE server_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id TEXT UNIQUE NOT NULL,
+    channel_id TEXT NOT NULL,
+    guild_id TEXT NOT NULL,
+    author_id TEXT NOT NULL,
+    author_name TEXT NOT NULL,
+    content TEXT NOT NULL,
+    importance_score REAL DEFAULT 0.0,
+    embedding_status TEXT DEFAULT 'pending',
+    discord_created_at TEXT NOT NULL
+);
+```
+
+### server_embeddings
+
+Vectors for important messages:
+
+```sql
+CREATE TABLE server_embeddings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id INTEGER,
+    embedding BLOB NOT NULL,  -- 1536-dim binary
+    source_text TEXT NOT NULL,
+    source_type TEXT DEFAULT 'message'
+);
+```
+
+### channel_summaries
+
+Periodic rollups:
+
+```sql
+CREATE TABLE channel_summaries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    channel_id TEXT NOT NULL,
+    guild_id TEXT NOT NULL,
+    period_type TEXT NOT NULL,  -- hourly, daily
+    period_start TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    key_topics TEXT,  -- JSON array
+    message_count INTEGER NOT NULL
+);
+```
+
+### active_topics
+
+Topic lifecycle tracking:
+
+```sql
+CREATE TABLE active_topics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    guild_id TEXT NOT NULL,
+    topic_name TEXT NOT NULL,
+    mention_count INTEGER DEFAULT 1,
+    status TEXT DEFAULT 'active'  -- active, cooling, dormant
+);
+```
+
+## Services
+
+### messageIngestion.js
+
+```javascript
+import { ingestMessage, calculateImportanceScore } from './services/messageIngestion.js';
+
+// Capture a message
+await ingestMessage(discordMessage);
+
+// Check importance
+const score = calculateImportanceScore(message);
+// Returns: 0.0-1.0
+```
+
+### embeddingQueue.js
+
+```javascript
+import { startProcessor, stopProcessor, getQueueStats } from './services/embeddingQueue.js';
+
+// Start background processing
+startProcessor();
+
+// Check status
+const stats = getQueueStats();
+// { pending: 15, completed: 230, failed: 2, isRunning: true }
+```
+
+### serverMemory.js
+
+```javascript
+import {
+    getAmbientContext,
+    searchServerMemories,
+    getActiveTopics,
+    buildServerMemoryContext
+} from './services/serverMemory.js';
+
+// Get full context for AI
+const context = await buildServerMemoryContext(guildId, channelId, query, userId);
+```
+
+### summarizer.js
+
+```javascript
+import { startScheduler, runHourlySummaries, triggerSummary } from './services/summarizer.js';
+
+// Start automatic summarization
+startScheduler(guildId);
+
+// Manual trigger
+await triggerSummary(channelId, guildId, 'hourly');
+```
+
+## Cost Estimation
+
+For a medium server (500 messages/day):
+
+| Component | Monthly Cost |
+|-----------|-------------|
+| Embeddings (30% of messages) | ~$0.005 |
+| Hourly summaries (5 active channels) | ~$0.36 |
+| Daily summaries | ~$0.09 |
+| **Total** | **~$0.50/month** |
+
+With 1000 messages/day: ~$1-2/month
+
+## Privacy Considerations
+
+- All messages in monitored channels are stored
+- Bot messages are excluded
+- Excluded channels can be configured via `SERVER_MEMORY_EXCLUDED_CHANNELS`
+- Messages are retained for `SERVER_MEMORY_RETENTION_DAYS` (default: 30)
+
+## Difference from User Memory
+
+| Feature | User Memory | Server Memory |
+|---------|-------------|---------------|
+| Scope | Per-user facts | All server activity |
+| Source | Extracted facts | Raw messages |
+| Retrieval | User-specific | Server-wide semantic search |
+| Purpose | Remember preferences | Ambient awareness |
+
+Both systems work together - Beboa uses user memory for personal facts and server memory for conversational awareness.
+
+## Best Practices
+
+1. **Start with defaults** - The 0.3 importance threshold works well
+2. **Exclude private channels** - Add sensitive channels to exclusion list
+3. **Monitor costs** - Check embedding queue stats periodically
+4. **Don't force references** - Let Beboa reference naturally when relevant
+5. **Trust the summaries** - They capture the essence of activity
+
+## Debugging
+
+Check server memory status:
+
+```javascript
+import { getStats } from './services/serverMemory.js';
+
+const stats = getStats(guildId);
+// { totalMessages: 1250, cachedEmbeddings: 380, lastCacheRefresh: "..." }
+```
+
+Check embedding queue:
+
+```javascript
+import { getQueueStats } from './services/embeddingQueue.js';
+
+const queueStats = getQueueStats();
+// { pending: 5, completed: 500, failed: 2, isProcessing: false, isRunning: true }
+```

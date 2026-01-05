@@ -1,0 +1,378 @@
+---
+title: Message Flow
+description: How messages flow through Beboa's architecture.
+---
+
+# Message Flow
+
+How messages flow through Beboa's architecture.
+
+## High-Level Flow
+
+```
+Discord Gateway
+      │
+      ▼
+┌─────────────────┐
+│  Discord.js     │
+│  Client         │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐     ┌─────────────────┐
+│ Event Router    │────▶│ Slash Commands  │
+│                 │     └─────────────────┘
+│ messageCreate   │
+│ interactionCreate│
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Message Handler │
+└────────┬────────┘
+         │
+    ┌────┴────┐
+    │         │
+    ▼         ▼
+@Mention   Jarvis Mode
+    │         │
+    ▼         ▼
+Chat AI    Admin Command
+```
+
+## Slash Command Flow
+
+When a user runs `/checkin`:
+
+```
+1. User types /checkin
+         │
+         ▼
+2. Discord sends interactionCreate event
+         │
+         ▼
+3. interactionCreate.js routes to command
+         │
+         ▼
+4. commands/checkin.js executes
+         │
+         ▼
+5. database.js performs check-in logic
+         │
+         ▼
+6. Response sent via interaction.reply()
+```
+
+### Detailed Sequence
+
+```javascript
+// 1. Event received
+client.on('interactionCreate', async (interaction) => {
+
+    // 2. Check if it's a command
+    if (!interaction.isChatInputCommand()) return;
+
+    // 3. Get command handler
+    const command = commands.get(interaction.commandName);
+
+    // 4. Execute command
+    try {
+        await command.execute(interaction);
+    } catch (error) {
+        await interaction.reply({ content: 'Error!', ephemeral: true });
+    }
+});
+```
+
+## Chat Message Flow
+
+When a user @mentions Beboa:
+
+```
+1. User sends "@Beboa hello!"
+         │
+         ▼
+2. messageCreate event fires
+         │
+         ▼
+3. Check: Is Beboa mentioned?
+         │ Yes
+         ▼
+4. Check: Is user on cooldown?
+         │ No
+         ▼
+5. Build context
+   ├─ Get channel messages
+   ├─ Get conversation history
+   ├─ Retrieve relevant memories
+   ├─ Load personality state
+   └─ Get current mood
+         │
+         ▼
+6. Construct messages array
+   ├─ System prompt (personality + context)
+   ├─ Recent history
+   └─ User's message
+         │
+         ▼
+7. Call OpenRouter API
+         │
+         ▼
+8. Check for tool calls
+         │
+    ┌────┴────┐
+    │         │
+  None     Tool call
+    │         │
+    │         ▼
+    │    Execute tool
+    │         │
+    │         ▼
+    │    Continue generation
+    │         │
+    └────┬────┘
+         │
+         ▼
+9. Send response
+         │
+         ▼
+10. Post-processing (LLM-powered)
+    ├─ Update conversation history
+    ├─ Extract memories (if enabled)
+    ├─ LLM: Evaluate mood (evaluateMood)
+    ├─ LLM: Evaluate relationship (evaluateRelationship)
+    └─ Apply mood/relationship changes
+```
+
+### Code Flow
+
+```javascript
+// messageCreate.js
+export async function execute(message) {
+    // Skip bots
+    if (message.author.bot) return;
+
+    // Check for mention
+    if (message.mentions.has(client.user)) {
+        await handleMention(message);
+        return;
+    }
+
+    // Check for Jarvis Mode
+    if (await isJarvisUser(message.author.id)) {
+        const result = await handleJarvisCommand(message);
+        if (result.handled) return;
+    }
+}
+
+async function handleMention(message) {
+    const userId = message.author.id;
+
+    // Cooldown check
+    if (await isOnCooldown(userId)) {
+        return message.reply("Please wait a moment!");
+    }
+
+    // Set cooldown
+    setCooldown(userId);
+
+    // Build context
+    const context = await buildChatContext(userId, message.channel);
+
+    // Generate response
+    const response = await chat.handleChat(message, context);
+
+    // Handle response (may include tool results)
+    await sendResponse(message, response);
+}
+```
+
+## Jarvis Mode Flow (LLM-First)
+
+When a Jarvis user sends a command:
+
+```
+1. User sends "give @user 100 bebits"
+         │
+         ▼
+2. messageCreate event fires
+         │
+         ▼
+3. Check: Is user a Jarvis user?
+         │ Yes
+         ▼
+4. Stage 1: Check pending confirmations
+         │ None pending
+         ▼
+5. Stage 2: LLM Intent Parser (PRIMARY)
+   └─ parseJarvisIntent("give @user 100 bebits")
+         │
+         ▼
+   LLM Response:
+   ├─ command: "give_bebits"
+   ├─ confidence: 0.92
+   ├─ params: { targetUserId, amount: 100 }
+   └─ requiresConfirmation: false
+         │ confidence > 0.6
+         ▼
+6. Execute command
+   └─ database.addBebits(userId, 100)
+         │
+         ▼
+7. Send response
+   └─ "Gave 100 bebits to @user!"
+         │
+         ▼
+8. Update context
+   ├─ lastMentionedUser = @user
+   └─ lastCommand = give_bebits
+```
+
+### Fallback Path (LLM unavailable)
+
+```
+5. Stage 2: LLM Intent Parser
+         │ Returns null (rate limited)
+         ▼
+6. Stage 3: Pattern Matching (FALLBACK)
+   └─ Regex: /give\s+(?:<@!?)?(\d+)>?\s+(\d+)/
+         │ Match found
+         ▼
+7. Execute command
+   └─ Continue as normal
+```
+
+### Confirmation Flow
+
+For commands requiring confirmation:
+
+```
+1. "give everyone 1000 bebits"
+         │
+         ▼
+2. Parse and validate
+   └─ requiresConfirmation = true
+         │
+         ▼
+3. Send confirmation request
+   └─ "This will give 1000 to 50 users. Confirm?"
+         │
+         ▼
+4. Store pending confirmation
+   └─ pendingConfirmations[userId] = { command, params }
+         │
+         ▼
+5. Wait for next message
+         │
+         ▼
+6. User sends "confirm"
+         │
+         ▼
+7. Check pending confirmations
+   └─ Found pending for this user
+         │
+         ▼
+8. Execute original command
+         │
+         ▼
+9. Clear pending confirmation
+```
+
+## Tool Call Flow
+
+When the AI decides to use a tool:
+
+```
+1. AI response includes tool_call
+   └─ { name: "generate_image", arguments: { prompt: "cute snake" } }
+         │
+         ▼
+2. Parse tool call
+         │
+         ▼
+3. Execute tool
+   └─ tools.generateImage("cute snake")
+         │
+         ▼
+4. Get result
+   └─ { success: true, url: "https://..." }
+         │
+         ▼
+5. Send image to channel
+         │
+         ▼
+6. (Optional) Continue conversation
+   └─ AI may add text response after tool
+```
+
+## Memory Extraction Flow
+
+Post-conversation memory processing:
+
+```
+1. Conversation complete
+         │
+         ▼
+2. Check: MEMORY_AUTO_EXTRACT enabled?
+         │ Yes
+         ▼
+3. Send conversation to extraction model
+         │
+         ▼
+4. AI extracts facts
+   └─ [{ content: "User likes cats", type: "preference", importance: 0.7 }]
+         │
+         ▼
+5. For each extracted memory:
+   ├─ Generate embedding
+   └─ Store in database
+         │
+         ▼
+6. Log extraction results
+```
+
+## Error Handling Flow
+
+```
+1. Error occurs at any stage
+         │
+         ▼
+2. Catch error in handler
+         │
+         ▼
+3. Log error details
+         │
+         ▼
+4. Determine error type
+         │
+    ┌────┴────┬──────────┐
+    │         │          │
+  API Error  DB Error  Other
+    │         │          │
+    ▼         ▼          ▼
+"AI busy"  "Oops!"   Generic
+         │
+         ▼
+5. Send user-friendly error message
+         │
+         ▼
+6. (Optional) Notify admin for critical errors
+```
+
+## Performance Considerations
+
+| Stage | Typical Latency | Notes |
+|-------|-----------------|-------|
+| Discord event | &lt;50ms | Gateway to handler |
+| Database query | &lt;10ms | SQLite is fast |
+| Context building | 50-100ms | Multiple queries |
+| OpenRouter API | 500-3000ms | Main bottleneck |
+| Memory search | 100-200ms | Embedding + similarity |
+| Tool execution | 500-5000ms | Varies by tool |
+
+### Optimization Tips
+
+1. **Parallel queries** - Build context concurrently
+2. **Cache personality** - Doesn't change often
+3. **Limit history** - Don't send full history every time
+4. **Batch embeddings** - For multi-memory extraction

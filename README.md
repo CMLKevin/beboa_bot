@@ -2,6 +2,8 @@
 
 A Discord loyalty/engagement bot for BubbleBebe's community server. Beboa is an AI-powered snake companion with a dynamic evolving personality who tracks daily check-ins, awards "Bebits" currency, remembers conversations through semantic memory, and builds genuine relationships with community members over time.
 
+**[View Full Documentation](https://cmlkevin.github.io/beboa_evo/)** | [GitHub](https://github.com/CMLKevin/beboa_evo)
+
 ## Features
 
 ### Core Features
@@ -12,12 +14,13 @@ A Discord loyalty/engagement bot for BubbleBebe's community server. Beboa is an 
 
 ### AI Evolution System
 - **Dynamic Personality** - 14 personality traits that evolve through interactions
-- **Mood System** - 12 distinct moods affecting behavior (happy, annoyed, mischievous, etc.)
-- **Relationship Tracking** - Per-user relationship stages from Stranger → Family
-- **Semantic Memory** - Vector-based long-term memory with auto-extraction
-- **Channel Awareness** - Sees past 20 messages for context
-- **Tool Calls** - Image generation, memory recall, and extensible tools
-- **Jarvis Mode 2.0** - Smart natural language admin commands with 25+ commands, AI fallback, and context awareness
+- **Mood System** - 11 distinct moods affecting behavior in real-time
+- **Relationship Tracking** - Per-user relationship stages from Stranger to Family
+- **User Memory** - Vector-based semantic memory with auto-extraction per user
+- **Server Memory** - Ambient awareness of all server conversations across channels
+- **LLM Evaluator** - Centralized intelligent evaluation for mood detection and interaction quality
+- **Tool Calls** - Image generation, memory recall, dice rolling, and extensible tools
+- **Jarvis Mode 2.0** - Smart natural language admin commands with 25+ commands
 
 ### Admin Tools
 - Manage Bebits, streaks, and view stats
@@ -35,33 +38,22 @@ A Discord loyalty/engagement bot for BubbleBebe's community server. Beboa is an 
 
 ### Installation
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/CMLKevin/beboa_evo.git
-   cd beboa_evo
-   ```
+```bash
+# Clone the repository
+git clone https://github.com/CMLKevin/beboa_evo.git
+cd beboa_evo
 
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
+# Install dependencies
+npm install
 
-3. Configure environment variables:
-   ```bash
-   cp .env.example .env
-   ```
+# Configure environment
+cp .env.example .env
 
-   Edit `.env` with your credentials (see Configuration section below)
+# Start the bot
+npm start
+```
 
-4. Enable MessageContent Intent:
-   - Go to [Discord Developer Portal](https://discord.com/developers/applications)
-   - Select your application → Bot
-   - Enable "Message Content Intent" under Privileged Gateway Intents
-
-5. Start the bot:
-   ```bash
-   npm start
-   ```
+Enable **Message Content Intent** in the [Discord Developer Portal](https://discord.com/developers/applications) under Bot → Privileged Gateway Intents.
 
 ## Configuration
 
@@ -80,233 +72,95 @@ ADMIN_ROLE_ID=role_to_ping_for_redemptions
 OPENROUTER_API_KEY=your_openrouter_api_key
 ```
 
-### AI Model Configuration
+### AI Configuration
 
 ```env
-# Chat Model
-OPENROUTER_MODEL=deepseek/deepseek-chat
-OPENROUTER_MAX_TOKENS=1000
-OPENROUTER_TEMPERATURE=0.9
-
-# Embedding Model (for semantic memory)
+# Models
+OPENROUTER_MODEL=x-ai/grok-4.1-fast
 EMBEDDING_MODEL=openai/text-embedding-3-small
-
-# Image Generation Model
 IMAGE_MODEL=bytedance-seed/seedream-4.5
+LLM_EVALUATOR_MODEL=x-ai/grok-4.1-fast
 
-# Memory Extraction Model
-EXTRACTION_MODEL=x-ai/grok-4.1-fast
-```
-
-### Feature Settings
-
-```env
-# Chat
-CHAT_COOLDOWN_SECONDS=1
-CHAT_MAX_HISTORY=150
+# Enable/Disable Features
 CHAT_ENABLED=true
-
-# Memory System
 MEMORY_ENABLED=true
 MEMORY_AUTO_EXTRACT=true
-CHANNEL_CONTEXT_LIMIT=20
-
-# Tools
+SERVER_MEMORY_ENABLED=true
 TOOLS_ENABLED=true
-IMAGE_GEN_ENABLED=true
-
-# Jarvis Mode (bebe.blu's user ID)
-BEBE_USER_ID=your_bebe_user_id
+LLM_EVALUATOR_ENABLED=true
 ```
+
+See the [Configuration Guide](https://cmlkevin.github.io/beboa_evo/getting-started/configuration) for all options.
 
 ## Commands
 
 ### User Commands
 
-| Command | Description | Channel |
-|---------|-------------|---------|
-| `/checkin` | Daily check-in to earn 1 Bebit | #log-in only |
-| `/balance` | Check your Bebits and streak | Any |
-| `/leaderboard` | View top 10 users | Any |
-| `/shop` | Browse and redeem rewards | Any |
-| `/chat` | Talk to Beboa | Any |
-| `/summarize` | Summarize channel messages | Any |
-| `@Beboa` | Mention Beboa to chat | Any |
+| Command | Description |
+|---------|-------------|
+| `/checkin` | Daily check-in to earn 1 Bebit |
+| `/balance` | Check your Bebits and streak |
+| `/leaderboard` | View top 10 users |
+| `/shop` | Browse and redeem rewards |
+| `/chat` | Talk to Beboa |
+| `/summarize` | Summarize channel messages |
+| `@Beboa` | Mention Beboa to chat |
 
 ### Admin Commands
 
-#### Bebits Management
-| Command | Description |
-|---------|-------------|
-| `/admin bebits add @user <amount>` | Add Bebits to a user |
-| `/admin bebits remove @user <amount>` | Remove Bebits from a user |
-| `/admin bebits set @user <amount>` | Set a user's Bebits balance |
-| `/admin streak reset @user` | Reset a user's streak |
-| `/admin stats` | View server statistics |
+See the [Admin Commands Reference](https://cmlkevin.github.io/beboa_evo/commands/admin) for the full list.
 
-#### Chat & Notes
-| Command | Description |
-|---------|-------------|
-| `/admin chat clear` | Clear all conversation history |
-| `/admin chat status` | View chat feature status |
-| `/admin chat viewnote @user` | View notes about a user |
-| `/admin chat setnote @user <note>` | Set notes about a user |
-| `/admin chat clearnote @user` | Clear notes about a user |
+## AI Systems
 
-#### Memory System
-| Command | Description |
-|---------|-------------|
-| `/admin memory add @user <content>` | Add a memory about a user |
-| `/admin memory search <query>` | Search Beboa's memories |
-| `/admin memory status` | View memory system status |
+### How It Works
 
-#### Personality System
-| Command | Description |
-|---------|-------------|
-| `/admin personality status` | View current personality state & mood |
-| `/admin personality mood <mood>` | Set Beboa's current mood |
-| `/admin personality relationship @user` | View relationship with a user |
+```
+User Message
+     ↓
+┌─────────────────────────────────────────────────┐
+│              LLM Evaluator                      │
+│  (Mood detection, intent analysis, quality)     │
+└─────────────────────────────────────────────────┘
+     ↓
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│  User Memory    │  │  Server Memory  │  │  Relationship   │
+│  (Per-user)     │  │  (All channels) │  │  (Trust/Stage)  │
+└─────────────────┘  └─────────────────┘  └─────────────────┘
+     ↓                      ↓                      ↓
+┌─────────────────────────────────────────────────┐
+│              Personality Engine                 │
+│  (14 traits + current mood + relationship)      │
+└─────────────────────────────────────────────────┘
+     ↓
+   Response (with optional tool calls)
+```
 
-#### Jarvis Permissions
-| Command | Description |
-|---------|-------------|
-| `/admin jarvis grant @user` | Grant Jarvis-style command permission |
-| `/admin jarvis revoke @user` | Revoke Jarvis permission |
-| `/admin jarvis commands` | List available Jarvis commands |
+### Key Systems
 
-#### Tools
-| Command | Description |
-|---------|-------------|
-| `/admin tools` | View registered AI tools |
+| System | Description |
+|--------|-------------|
+| **Dynamic Personality** | 14 evolving traits (Big Five + custom) that change through interactions |
+| **Mood System** | 11 moods (happy, annoyed, mischievous, etc.) affecting tone and behavior |
+| **Relationships** | 6 stages from Stranger → Family with individual trust/affection metrics |
+| **User Memory** | Per-user semantic memory with vector search and auto-extraction |
+| **Server Memory** | Ambient awareness of all conversations with hourly/daily summaries |
+| **LLM Evaluator** | Centralized evaluation for mood impact, intent, and interaction quality |
 
-## AI Evolution System
-
-### Dynamic Personality
-
-Beboa has 14 personality traits that evolve through interactions:
-
-**Big Five Inspired:**
-- Openness (curiosity, creativity)
-- Conscientiousness (organization vs chaos)
-- Extraversion (energy, sociability)
-- Agreeableness (warmth beneath snark)
-- Neuroticism (emotional reactivity)
-
-**Beboa-Specific:**
-- Tsundere Level (defensive about caring)
-- Snarkiness (wit and sass)
-- Protectiveness (toward community)
-- Chaos Energy (unpredictability)
-- Wisdom (when to be serious)
-- Playfulness (joking and teasing)
-- Patience (tolerance for annoyance)
-- Competitiveness (drive to win)
-- Vulnerability (willingness to show softness)
-
-### Mood System
-
-12 distinct moods that temporarily modify personality expression:
-
-| Mood | Effect | Duration |
-|------|--------|----------|
-| Neutral | Default state | 60 min |
-| Happy | +playfulness, -snarkiness | 45 min |
-| Annoyed | +snarkiness, -patience | 30 min |
-| Mischievous | +chaos, scheming energy | 40 min |
-| Protective | +protectiveness, -tsundere | 60 min |
-| Flustered | +tsundere, caught being nice | 20 min |
-| Bored | +chaos, needs entertainment | 30 min |
-| Energetic | +extraversion, high energy | 35 min |
-| Melancholic | +wisdom, thoughtful | 45 min |
-| Competitive | Game on mode | 30 min |
-| Smug | Feeling superior | 25 min |
-| Soft | Rare genuine warmth | 20 min |
-
-### Relationship Stages
-
-Beboa's behavior changes based on familiarity with each user:
-
-| Stage | Familiarity | Behavior |
-|-------|-------------|----------|
-| Stranger | 0-20% | Sizing them up, default snark |
-| Acquaintance | 20-40% | Recognizes them, slightly warmer |
-| Regular | 40-60% | Comfortable teasing, remembers things |
-| Friend | 60-80% | Genuine care beneath snark, inside jokes |
-| Close Friend | 80-95% | Protective, drops act occasionally |
-| Family | 95%+ | Would die for them (not that she'd admit it) |
-
-### Semantic Memory
-
-Beboa remembers facts about users through vector embeddings:
-
-- **Auto-extraction** - Automatically detects and stores facts from conversations
-- **Semantic search** - Finds relevant memories by meaning, not just keywords
-- **Memory types** - Facts, preferences, events, relationships, jokes, lore
-- **Natural recall** - References memories naturally in conversation
+See the [AI Systems Documentation](https://cmlkevin.github.io/beboa_evo/ai) for deep dives into each system.
 
 ### Jarvis Mode 2.0
 
-For bebe.blu (server owner), Beboa executes admin commands via natural language with smart intent parsing.
+Natural language admin commands for the server owner:
 
-#### Available Commands
+```
+"give Kevin 100 bebits"
+"what do you remember about cats"
+"set mood to mischievous"
+"bonk @user"
+"ship @user1 x @user2"
+```
 
-**💰 Bebits Management:**
-| Command | Examples |
-|---------|----------|
-| Give bebits | `give @user 100 bebits`, `award @user 50 points`, `bless them with 200` |
-| Remove bebits | `take 50 from @user`, `yoink 100 from @user`, `yeet 25 from them` |
-| Set bebits | `set @user bebits to 500`, `@user bebits = 100` |
-| Transfer | `transfer 100 from @user1 to @user2` |
-| Mass give | `award everyone 10 bebits`, `give @user1 @user2 50 each` |
-
-**📊 Info Commands:**
-| Command | Examples |
-|---------|----------|
-| User info | `info @user`, `check @user`, `tell me about @user` |
-| Compare users | `compare @user1 vs @user2`, `@user1 versus @user2` |
-| Server stats | `server stats`, `how is the server doing` |
-
-**🧠 Memory Commands:**
-| Command | Examples |
-|---------|----------|
-| Add note | `remember that @user loves cats`, `note about @user: allergic to peanuts` |
-| Search | `what do you remember about cats`, `recall birthday` |
-
-**🎭 Personality Commands:**
-| Command | Examples |
-|---------|----------|
-| Set mood | `set mood to mischievous`, `beboa be happy` |
-| Status | `how are you feeling`, `personality status` |
-
-**🎉 Fun Commands:**
-| Command | Examples |
-|---------|----------|
-| Bonk | `bonk @user`, `send @user to horny jail` |
-| Shame | `shame @user`, `expose @user`, `blast @user` |
-| Praise | `praise @user`, `hype @user`, `gas up @user` |
-| Roast | `roast @user`, `destroy @user`, `drag @user` |
-| Simp check | `simp check @user`, `is @user a simp` |
-| Crown/Dethrone | `crown @user`, `dethrone @user` |
-| Fortune | `fortune @user`, `predict @user's future` |
-| Ship | `ship @user1 x @user2`, `compatibility @user1 @user2` |
-| Wheel of Fate | `spin wheel for @user`, `wheel of fate @user` |
-
-#### Smart Intent Parsing
-
-Jarvis Mode uses a 5-stage parsing pipeline:
-
-1. **Pattern Matching** - Regex-based exact matching
-2. **Intent Analysis** - Keyword scoring with 25+ synonym mappings
-3. **Entity Extraction** - Automatic user/amount/text detection
-4. **AI Fallback** - Chain-of-thought parsing for complex requests
-5. **Context Substitution** - "give them 50 more" uses previous user
-
-**Features:**
-- Conversation context (remembers who you were talking about)
-- Word number recognition ("fifty" = 50)
-- Fuzzy typo tolerance
-- Clarification questions when confidence is low
-- Synonym support: yoink, yeet, bless, nuke, etc.
+Features smart intent parsing with synonym support, context memory, and AI fallback. See [Jarvis Mode Documentation](https://cmlkevin.github.io/beboa_evo/jarvis).
 
 ## Project Structure
 
@@ -316,79 +170,37 @@ beboa-bot/
 │   ├── index.js              # Entry point
 │   ├── config.js             # Environment config
 │   ├── database.js           # SQLite database
-│   ├── commands/
-│   │   ├── checkin.js
-│   │   ├── balance.js
-│   │   ├── leaderboard.js
-│   │   ├── shop.js
-│   │   ├── chat.js           # AI chat command
-│   │   ├── summarize.js      # Channel summarization
-│   │   └── admin.js          # All admin commands
-│   ├── handlers/
-│   │   ├── commandHandler.js
-│   │   ├── buttonHandler.js
-│   │   └── messageHandler.js # @mention handler + context
-│   ├── migrations/
-│   │   ├── runner.js
-│   │   ├── index.js
-│   │   ├── 001_initial_schema.js
-│   │   ├── 002_add_beboa_notes.js
-│   │   ├── 003_add_chat_history.js
-│   │   ├── 004_add_memory_system.js
-│   │   └── 005_add_personality_system.js
+│   ├── commands/             # Slash commands
+│   ├── handlers/             # Event handlers
+│   ├── migrations/           # Database migrations
 │   ├── services/
 │   │   ├── openrouter.js     # OpenRouter API client
 │   │   ├── embedding.js      # Vector embeddings
-│   │   ├── memory.js         # Semantic memory system
+│   │   ├── memory.js         # User semantic memory
+│   │   ├── serverMemory.js   # Server-wide memory
+│   │   ├── llmEvaluator.js   # Centralized LLM evaluation
 │   │   ├── personality.js    # Dynamic personality
 │   │   ├── tools.js          # AI tool framework
 │   │   ├── channelContext.js # Channel awareness
 │   │   └── adminCommands.js  # Jarvis-style commands
 │   └── utils/
-│       ├── beboa-persona.js  # AI personality & prompts
-│       ├── rewards.js
-│       ├── messages.js
-│       └── time.js
+│       └── beboa-persona.js  # AI personality & prompts
+├── docs/                     # Next.js documentation site
 ├── data/
 │   └── beboa.db              # SQLite database
-├── .env.example
-├── package.json
 └── README.md
 ```
 
-## Database Tables
+## Documentation
 
-| Table | Purpose |
-|-------|---------|
-| `users` | User data, bebits, streaks, notes |
-| `redemptions` | Reward redemption history |
-| `chat_history` | Persistent conversation history |
-| `semantic_memories` | Long-term memories with embeddings |
-| `memory_embeddings` | Vector embeddings for semantic search |
-| `tool_usage` | Tool invocation logs |
-| `personality_state` | Current personality traits and mood |
-| `personality_evolution` | Trait change history |
-| `user_relationships` | Per-user relationship data |
-| `mood_history` | Mood change history |
-| `admin_permissions` | Jarvis permission grants |
-| `user_interactions` | Detailed interaction tracking |
-| `_migrations` | Applied migrations |
+The full documentation is available at **[cmlkevin.github.io/beboa_evo](https://cmlkevin.github.io/beboa_evo/)**.
 
-## Reward Tiers
-
-| Reward | Cost |
-|--------|------|
-| A Bite From Bebe | 1 Bebit |
-| Praise From Bebe | 2 Bebits |
-| Degradation From Bebe | 5 Bebits |
-| Simple Task/Punishment | 25 Bebits |
-| Bebe Scam | 50 Bebits |
-| Control Toy (5 min) | 100 Bebits |
-| Voice Message (1-2 min) | 120 Bebits |
-| 15 Minutes of Fame | 150 Bebits |
-| Control Toy (15 min) | 200 Bebits |
-| Voice Message (5-10 min) | 360 Bebits |
-| GF For A Day | 500 Bebits |
+- [Quick Start Guide](https://cmlkevin.github.io/beboa_evo/getting-started/quickstart)
+- [Configuration Reference](https://cmlkevin.github.io/beboa_evo/getting-started/configuration)
+- [AI Systems Overview](https://cmlkevin.github.io/beboa_evo/ai)
+- [Jarvis Mode 2.0](https://cmlkevin.github.io/beboa_evo/jarvis)
+- [Commands Reference](https://cmlkevin.github.io/beboa_evo/commands/user)
+- [Architecture](https://cmlkevin.github.io/beboa_evo/architecture/structure)
 
 ## Deployment
 
@@ -401,7 +213,6 @@ beboa-bot/
 ### VPS / DigitalOcean
 
 ```bash
-# Clone and setup
 git clone https://github.com/CMLKevin/beboa_evo.git
 cd beboa_evo
 npm install --production
@@ -409,14 +220,7 @@ npm install --production
 # Use PM2 for process management
 npm install -g pm2
 pm2 start src/index.js --name beboa
-pm2 save
-pm2 startup
-```
-
-### Backup
-
-```bash
-cp data/beboa.db backups/beboa_$(date +%Y%m%d).db
+pm2 save && pm2 startup
 ```
 
 ## License

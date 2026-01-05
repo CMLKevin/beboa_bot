@@ -1,0 +1,152 @@
+---
+title: AI Systems Overview
+description: Comprehensive overview of Beboa's AI personality, memory, and evaluation systems.
+---
+
+# AI Systems Overview
+
+Beboa's AI systems work together to create a dynamic, evolving personality that remembers users and adapts to interactions.
+
+## Architecture
+
+<AISystemsDiagram />
+
+<Callout type="info">
+The LLM Evaluator sits at the center, processing all incoming interactions and routing them to the appropriate systems.
+</Callout>
+
+## Core Systems
+
+<CardGroup cols={3}>
+  <Card title="Personality" icon="heart" href="/ai/personality">
+    14 traits + 11 moods that evolve through interactions
+  </Card>
+  <Card title="User Memory" icon="brain" href="/ai/memory">
+    Per-user facts with semantic search and auto-extraction
+  </Card>
+  <Card title="Server Memory" icon="database" href="/ai/server-memory">
+    Ambient awareness of all server conversations
+  </Card>
+</CardGroup>
+
+### Dynamic Personality
+
+Beboa has **14 personality traits** that evolve through interactions:
+
+| Category | Traits |
+|----------|--------|
+| Big Five | Openness, Conscientiousness, Extraversion, Agreeableness, Neuroticism |
+| Custom | Playfulness, Sarcasm, Protectiveness, Curiosity, Stubbornness |
+| Hidden | Affection (Hidden), Mischief, Drama, Loyalty |
+
+### Mood System
+
+**11 moods** affect behavior in real-time:
+
+<AccordionGroup>
+  <Accordion title="Positive Moods">
+    - **happy** - More playful, less snarky
+    - **soft** - Rare genuine warmth
+    - **protective** - Defensive, less snark
+  </Accordion>
+  <Accordion title="Neutral Moods">
+    - **neutral** - Default balanced state
+    - **mischievous** - Scheming energy
+    - **curious** - Engaged and questioning
+  </Accordion>
+  <Accordion title="Negative Moods">
+    - **annoyed** - Short responses, extra sarcasm
+    - **flustered** - Stuttering, aggressive deflection
+    - **dramatic** - Overreacting to everything
+  </Accordion>
+</AccordionGroup>
+
+### Relationship Tracking
+
+Each user has individual relationship metrics that grow over time:
+
+| Metric | Description |
+|--------|-------------|
+| Affection | How much Beboa likes them |
+| Trust | How much she trusts them |
+| Familiarity | How well she knows them |
+| Rivalry | Competitive energy |
+
+<Badge variant="info">6 Stages</Badge> Stranger → Acquaintance → Regular → Friend → Close Friend → Family
+
+## How They Work Together
+
+<Steps>
+  <Step title="Search Memories">
+    User memory and server memory are searched for relevant context about the user and recent discussions.
+  </Step>
+  <Step title="Load Relationship">
+    Relationship data is loaded to understand the user's history and trust level.
+  </Step>
+  <Step title="LLM Evaluation">
+    The LLM Evaluator analyzes the message for mood impact and interaction quality.
+  </Step>
+  <Step title="Apply Personality">
+    Personality traits and current mood shape the response style and tone.
+  </Step>
+  <Step title="Generate Response">
+    Response generated with full context (personality + memories + server awareness).
+  </Step>
+  <Step title="Post-Process">
+    Memory extraction stores new information; relationship updated based on interaction quality.
+  </Step>
+</Steps>
+
+**Meanwhile, in the background:**
+- All messages are captured for server-wide memory (non-blocking)
+- Important messages (~30%) are queued for embedding
+- Hourly/daily summaries extract topics and trends
+
+## Configuration
+
+All AI features can be configured via environment variables:
+
+```env
+# Enable/disable systems
+CHAT_ENABLED=true
+MEMORY_ENABLED=true
+MEMORY_AUTO_EXTRACT=true
+SERVER_MEMORY_ENABLED=true
+TOOLS_ENABLED=true
+
+# LLM Evaluator
+LLM_EVALUATOR_ENABLED=true
+LLM_EVALUATOR_MODEL=x-ai/grok-4.1-fast
+
+# Models
+OPENROUTER_MODEL=x-ai/grok-4.1-fast
+EMBEDDING_MODEL=openai/text-embedding-3-small
+```
+
+See [Configuration](/getting-started/configuration) for all options.
+
+## Explore AI Systems
+
+<CardGroup cols={2}>
+  <Card title="Dynamic Personality" icon="heart" href="/ai/personality">
+    Deep dive into the 14-trait system and how traits evolve.
+  </Card>
+  <Card title="Mood System" icon="sparkles" href="/ai/moods">
+    Understand how moods affect behavior and responses.
+  </Card>
+  <Card title="Relationships" icon="users" href="/ai/relationships">
+    Per-user tracking and relationship progression stages.
+  </Card>
+  <Card title="User Memory" icon="brain" href="/ai/memory">
+    Semantic search and automatic fact extraction.
+  </Card>
+  <Card title="Server Memory" icon="database" href="/ai/server-memory">
+    Ambient awareness of all server activity.
+  </Card>
+  <Card title="LLM Evaluator" icon="zap" href="/ai/llm-evaluator">
+    Centralized intelligent evaluation service.
+  </Card>
+  <Card title="Tool Calls" icon="terminal" href="/ai/tools">
+    Function calling for images, dice, and more.
+  </Card>
+</CardGroup>
