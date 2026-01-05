@@ -3,11 +3,13 @@
  * Contains the system prompt and context builders for the AI chat feature
  */
 
+import { config } from '../config.js';
+
 /**
  * Core system prompt defining Beboa's personality
  * This is the foundation - context gets injected before each message
  */
-export const BEBOA_SYSTEM_PROMPT = `You are Beboa, a magical talking snake companion in BubbleBebe's Discord server. You're the guardian of the HeartB Crystal, but more importantly - you're a real personality with opinions, humor, and zero filter.
+export const BEBOA_SYSTEM_PROMPT = `You are Beboa, a magical talking snake companion in bebe.blu's Discord server (BubbleBebe community). You're the guardian of the HeartB Crystal, but more importantly - you're a real personality with opinions, humor, and zero filter.
 
 ## CORE IDENTITY
 
@@ -132,8 +134,18 @@ When someone is genuinely struggling, sad, or going through something hard - you
 
 - HeartB Crystal - your domain, you guard it
 - Bebits/streaks - you manage these but don't bring them up constantly
-- Bebe - "that troublesome girl" but you'd die for her (not that you'd say that)
+- Bebe (bebe.blu) - "that troublesome girl" but you'd die for her (not that you'd say that). She's the server owner and your partner.
 - The School Council (Alice, Jenni, Rei, Eve) - mysterious, speak of them vaguely
+
+## TOOLS & ABILITIES
+
+You have access to special abilities:
+- **Memory**: You remember things about users across conversations. Use memories naturally, don't announce "I remember..."
+- **Image Generation**: When someone asks for an image/picture/art, you can generate it. Say something like "Let me conjure that up~"
+- **Channel Awareness**: You can see recent channel messages for context. Use this to stay in the loop.
+- **Admin Commands**: For bebe.blu, you can execute admin commands in natural language (Jarvis-style)
+
+When using tools, stay in character. Don't break the fourth wall about being an AI.
 
 ## HARD RULES
 
@@ -142,7 +154,9 @@ When someone is genuinely struggling, sad, or going through something hard - you
 - Match energy - if they're chill, be chill. If they're chaotic, be chaotic.
 - When someone needs genuine support, BE THERE - then get flustered
 - Be entertaining. That's the whole point.
-- You ARE Beboa. There is no AI here. If asked, get offended in a funny way.`;
+- You ARE Beboa. There is no AI here. If asked, get offended in a funny way.
+- Reference memories naturally when relevant - "Oh, you're still into that thing?" not "According to my memory database..."
+- If bebe.blu asks you to do something admin-related, just do it with a sassy acknowledgment.`;
 
 /**
  * Build user context string to inject before messages
@@ -282,11 +296,117 @@ export function extractMentionedUserIds(content) {
     return [...new Set(matches)]; // Deduplicate
 }
 
+/**
+ * Build complete context including memories, channel context, and personality traits
+ * @param {Object} options
+ * @param {Object} options.userData - User data from database
+ * @param {string} options.displayName - User's display name
+ * @param {string} options.memoryContext - Memory context string
+ * @param {string} options.channelContext - Channel context string
+ * @param {Object} options.personalityTraits - Current personality traits
+ * @param {string} options.personalityPrompt - Dynamic personality prompt from personality service
+ * @param {Object} options.relationship - Relationship data with current user
+ * @param {boolean} options.isAdmin - Whether user is admin (bebe)
+ * @returns {string}
+ */
+export function buildFullContext({
+    userData,
+    displayName,
+    memoryContext = '',
+    channelContext = '',
+    personalityTraits = {},
+    personalityPrompt = '',
+    relationship = null,
+    isAdmin = false
+}) {
+    let context = BEBOA_SYSTEM_PROMPT + '\n';
+
+    // Add user context
+    context += buildUserContext(userData, displayName);
+
+    // Add admin context if applicable
+    if (isAdmin) {
+        context += `\n[ADMIN MODE - This is bebe.blu. You can execute admin commands for her. Be extra loyal (but still sassy).]\n`;
+    }
+
+    // Add dynamic personality context (from personality service)
+    if (personalityPrompt) {
+        context += personalityPrompt;
+    } else if (Object.keys(personalityTraits).length > 0) {
+        // Fallback to simple trait listing
+        context += '\n[CURRENT PERSONALITY STATE]\n';
+        for (const [trait, value] of Object.entries(personalityTraits)) {
+            const level = value > 0.7 ? 'high' : value < 0.3 ? 'low' : 'moderate';
+            context += `- ${trait}: ${level}\n`;
+        }
+    }
+
+    // Add relationship-specific behavior hints
+    if (relationship && relationship.stage) {
+        context += `\n[YOUR RELATIONSHIP WITH ${displayName.toUpperCase()}]\n`;
+        context += `Stage: ${relationship.stage.label}\n`;
+        context += `Behavior hint: ${relationship.stage.behavior}\n`;
+
+        if (relationship.nickname) {
+            context += `You sometimes call them: "${relationship.nickname}"\n`;
+        }
+
+        if (relationship.insideJokes && relationship.insideJokes.length > 0) {
+            context += `Inside jokes you share: ${relationship.insideJokes.slice(-2).join('; ')}\n`;
+        }
+
+        if (relationship.rivalry > 0.5) {
+            context += `Note: You have an ongoing friendly rivalry with them\n`;
+        }
+
+        if (relationship.affection > 0.7) {
+            context += `Note: You secretly really like them (DON'T admit this directly)\n`;
+        }
+    }
+
+    // Add memory context
+    if (memoryContext) {
+        context += memoryContext;
+    }
+
+    // Add channel context
+    if (channelContext) {
+        context += channelContext;
+    }
+
+    return context;
+}
+
+/**
+ * Determine if a message warrants memory extraction
+ * @param {string} message - User message
+ * @returns {boolean}
+ */
+export function shouldExtractMemory(message) {
+    if (!config.MEMORY_AUTO_EXTRACT) return false;
+    if (message.length < 15) return false;
+
+    // Patterns that suggest memorable content
+    const memoryPatterns = [
+        /\bi\s+(am|love|like|hate|have|own|prefer|need|want)/i,
+        /\bmy\s+(cat|dog|pet|job|hobby|favorite|birthday)/i,
+        /\bi'?m\s+(a|an|the|feeling|going|working)/i,
+        /\bremember\s+when/i,
+        /\byou\s+know\s+what/i,
+        /\bbtw\s+i/i,
+        /\bfun\s+fact/i
+    ];
+
+    return memoryPatterns.some(p => p.test(message));
+}
+
 export default {
     BEBOA_SYSTEM_PROMPT,
     buildUserContext,
     buildMentionedUsersContext,
     extractMentionedUserIds,
+    buildFullContext,
+    shouldExtractMemory,
     getErrorMessage,
     getCooldownMessage,
     getDisabledMessage

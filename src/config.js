@@ -44,14 +44,35 @@ export const config = {
 
     // OpenRouter Configuration (optional - chat feature)
     OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || null,
-    OPENROUTER_MODEL: process.env.OPENROUTER_MODEL || 'deepseek/deepseek-chat',
+    OPENROUTER_MODEL: process.env.OPENROUTER_MODEL || 'x-ai/grok-4.1-fast',
     OPENROUTER_MAX_TOKENS: parseInt(process.env.OPENROUTER_MAX_TOKENS) || 1000,
     OPENROUTER_TEMPERATURE: parseFloat(process.env.OPENROUTER_TEMPERATURE) || 0.9,
+
+    // Embedding Model (for semantic memory)
+    EMBEDDING_MODEL: process.env.EMBEDDING_MODEL || 'openai/text-embedding-3-small',
+
+    // Image Generation Model
+    IMAGE_MODEL: process.env.IMAGE_MODEL || 'bytedance-seed/seedream-4.5',
+
+    // Memory Extraction Model (lightweight for auto-extraction)
+    EXTRACTION_MODEL: process.env.EXTRACTION_MODEL || 'x-ai/grok-4.1-fast',
 
     // Chat Feature Settings
     CHAT_COOLDOWN_SECONDS: parseInt(process.env.CHAT_COOLDOWN_SECONDS) || 30,
     CHAT_MAX_HISTORY: parseInt(process.env.CHAT_MAX_HISTORY) || 10,
-    CHAT_ENABLED: process.env.CHAT_ENABLED !== 'false'
+    CHAT_ENABLED: process.env.CHAT_ENABLED !== 'false',
+
+    // Memory Settings
+    MEMORY_ENABLED: process.env.MEMORY_ENABLED !== 'false',
+    MEMORY_AUTO_EXTRACT: process.env.MEMORY_AUTO_EXTRACT !== 'false',
+    CHANNEL_CONTEXT_LIMIT: parseInt(process.env.CHANNEL_CONTEXT_LIMIT) || 20,
+
+    // Tool Settings
+    TOOLS_ENABLED: process.env.TOOLS_ENABLED !== 'false',
+    IMAGE_GEN_ENABLED: process.env.IMAGE_GEN_ENABLED !== 'false',
+
+    // Admin/Jarvis Settings
+    BEBE_USER_ID: process.env.BEBE_USER_ID || null
 };
 
 export default config;
